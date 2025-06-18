@@ -11,6 +11,8 @@ from .base import ModelClient, ModelConfig
 
 
 class _OpenAICore(ModelClient):
+    """Shared logic for OpenAI-compatible providers."""
+
     api_url: str
     api_key_var: str
 

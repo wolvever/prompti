@@ -14,6 +14,8 @@ from ..message import Message
 
 
 class ModelConfig(BaseModel):
+    """Configuration for a model invocation."""
+
     provider: str
     model: str
     parameters: dict[str, Any] = {}
@@ -30,6 +32,7 @@ class ModelClient:
     )
 
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
+        """Create the client with an optional :class:`httpx.AsyncClient`."""
         self._client = client or httpx.AsyncClient(http2=True)
         self._tracer = trace.get_tracer(__name__)
 
@@ -52,4 +55,5 @@ class ModelClient:
         raise NotImplementedError
 
     async def close(self) -> None:
+        """Close the underlying HTTP client."""
         await self._client.aclose()
