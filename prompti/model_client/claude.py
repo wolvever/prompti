@@ -10,6 +10,8 @@ from .base import ModelClient, ModelConfig
 
 
 class ClaudeClient(ModelClient):
+    """Client for Anthropic Claude models."""
+
     provider = "claude"
 
     async def _run(
