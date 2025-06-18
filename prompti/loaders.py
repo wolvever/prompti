@@ -19,13 +19,11 @@ class MemoryLoader:
         if not data:
             raise FileNotFoundError(name)
         version = data.get("version", "0")
-        commit = data.get("git_commit_id")
         tmpl = PromptTemplate(
             id=name,
             name=name,
             version=version,
             jinja_source=data.get("jinja", ""),
-            git_commit_id=commit,
         )
         return version, tmpl
 
@@ -42,12 +40,10 @@ class HTTPLoader:
             raise FileNotFoundError(name)
         data = resp.json()
         version = data["version"]
-        commit = data.get("git_commit_id")
         tmpl = PromptTemplate(
             id=name,
             name=name,
             version=version,
             jinja_source=data["jinja"],
-            git_commit_id=commit,
         )
         return version, tmpl

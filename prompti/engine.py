@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 from typing import Any, AsyncGenerator, Awaitable, Callable, Tuple, Dict
-import subprocess
 
 from async_lru import alru_cache
 from pydantic import BaseModel
@@ -24,20 +23,11 @@ class FileSystemLoader:
         path = self.base / f"{name}.jinja"
         text = path.read_text()
         version = "1.0.0"
-        try:
-            commit = (
-                subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
-                .decode()
-                .strip()
-            )
-        except Exception:
-            commit = None
         tmpl = PromptTemplate(
             id=name,
             name=name,
             version=version,
             jinja_source=text,
-            git_commit_id=commit,
         )
         return version, tmpl
 
