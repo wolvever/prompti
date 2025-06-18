@@ -66,7 +66,7 @@ class PromptEngine:
         variables: dict[str, Any],
         tags: str | None,
         model_cfg: ModelConfig,
-        client: ModelClient | None = None,
+        client: ModelClient,
     ) -> AsyncGenerator[Message, None]:
         tmpl = await self._resolve(template_name, tags)
         async for msg in tmpl.run(variables, tags, model_cfg, client=client):

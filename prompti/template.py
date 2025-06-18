@@ -47,10 +47,8 @@ class PromptTemplate(BaseModel):
         variables: dict[str, Any],
         tag: str | None,
         model_cfg: ModelConfig,
-        client: ModelClient | None = None,
+        client: ModelClient,
     ) -> AsyncGenerator[Message, None]:
-        if client is None:
-            client = ModelClient()
         messages = self.format(variables, tag)
         async for m in client.run(messages, model_cfg=model_cfg):
             yield m

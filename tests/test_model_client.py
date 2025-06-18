@@ -5,7 +5,13 @@ import pytest
 import httpx
 from httpx import Response, Request
 
-from prompti.model_client import ModelClient, ModelConfig, Message
+from prompti.model_client import (
+    ModelConfig,
+    Message,
+    OpenAIClient,
+    OpenRouterClient,
+    LiteLLMClient,
+)
 
 
 @pytest.mark.asyncio
@@ -23,7 +29,12 @@ async def test_openai_like_providers(provider, url):
 
     transport = httpx.MockTransport(handler)
     client = httpx.AsyncClient(transport=transport)
-    mc = ModelClient(client=client)
+    client_map = {
+        "openai": OpenAIClient,
+        "openrouter": OpenRouterClient,
+        "litellm": LiteLLMClient,
+    }
+    mc = client_map[provider](client=client)
     cfg = ModelConfig(provider=provider, model="gpt-4o")
     messages = [Message(role="user", kind="text", content="hi")]
     result = [m async for m in mc.run(messages, cfg)]

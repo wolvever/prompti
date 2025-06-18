@@ -26,11 +26,12 @@ provider‑specific protocols.
    python examples/basic.py
    ```
 
-   This will render `prompts/support_reply.jinja` and invoke the stub
-   `ModelClient`, printing messages to the console.
+   This will render `prompts/support_reply.jinja` and invoke the
+   `OpenAIClient`, printing messages to the console.
 
-Supported providers include **OpenAI**, **Claude (Anthropic)**, **OpenRouter**
-and **LiteLLM**.  Set the corresponding API key environment variables such as
+Supported providers include **OpenAI**, **Claude (Anthropic)**, **OpenRouter**,
+and **LiteLLM**.  Each provider has its own `ModelClient` subclass (e.g.
+`OpenAIClient`).  Set the corresponding API key environment variables such as
 `OPENAI_API_KEY` before running examples.
 
 See `DESIGN.md` for a more detailed description of the architecture.
