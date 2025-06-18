@@ -15,7 +15,6 @@ class PromptTemplate(BaseModel):
     name: str
     version: str
     jinja_source: str
-    git_commit_id: str | None = None
     tags: set[str] = set()
 
     def format(
