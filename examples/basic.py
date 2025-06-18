@@ -1,11 +1,11 @@
 import asyncio
 
-from prompti.engine import PromptEngine, Settings
+from prompti.engine import PromptEngine, Setting
 from prompti.model_client import ModelConfig, OpenAIClient
 
 async def main():
-    settings = Settings(template_paths=["./prompts"])
-    engine = PromptEngine.from_settings(settings)
+    settings = Setting(template_paths=["./prompts"])
+    engine = PromptEngine.from_setting(settings)
     model_cfg = ModelConfig(provider="openai", model="gpt-4o")
     client = OpenAIClient()
     async for msg in engine.run(

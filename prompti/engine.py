@@ -74,18 +74,18 @@ class PromptEngine:
             yield msg
 
     @classmethod
-    def from_settings(cls, settings: "Settings") -> "PromptEngine":
-        loaders = [FileSystemLoader(Path(p)) for p in settings.template_paths]
-        if settings.template_registry_url:
-            loaders.append(HTTPLoader(settings.template_registry_url))
-        if settings.memory_templates:
-            loaders.append(MemoryLoader(settings.memory_templates))
-        return cls(loaders, cache_ttl=settings.cache_ttl)
+    def from_setting(cls, setting: "Setting") -> "PromptEngine":
+        loaders = [FileSystemLoader(Path(p)) for p in setting.template_paths]
+        if setting.registry_url:
+            loaders.append(HTTPLoader(setting.registry_url))
+        if setting.memory_templates:
+            loaders.append(MemoryLoader(setting.memory_templates))
+        return cls(loaders, cache_ttl=setting.cache_ttl)
 
 
-class Settings(BaseModel):
+class Setting(BaseModel):
     template_paths: list[Path] = [Path("./prompts")]
     cache_ttl: int = 300
-    template_registry_url: str | None = None
+    registry_url: str | None = None
     memory_templates: dict[str, dict[str, str]] | None = None
 
