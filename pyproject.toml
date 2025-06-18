@@ -1,0 +1,35 @@
+[project]
+name = "prompti"
+version = "0.1.0"
+description = "Provider-agnostic asynchronous prompt engine"
+authors = [
+  { name = "PromptI Developers" }
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+  "pydantic>=2",
+  "jinja2>=3",
+  "async-lru",
+  "httpx>=0.25",
+  "tenacity>=8",
+  "prometheus-client",
+  "opentelemetry-api",
+  "opentelemetry-sdk",
+]
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-asyncio"]
+
+[tool.uv]
+# uv is used for dependency management during development
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["prompti*"]
+exclude = ["prompts"]
