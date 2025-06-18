@@ -11,7 +11,8 @@ _env = SandboxedEnvironment()
 
 
 class PromptTemplate(BaseModel):
-    template_id: str
+    id: str
+    name: str
     version: str
     jinja_source: str
     git_commit_id: str | None = None

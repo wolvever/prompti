@@ -21,7 +21,8 @@ class MemoryLoader:
         version = data.get("version", "0")
         commit = data.get("git_commit_id")
         tmpl = PromptTemplate(
-            template_id=name,
+            id=name,
+            name=name,
             version=version,
             jinja_source=data.get("jinja", ""),
             git_commit_id=commit,
@@ -43,7 +44,8 @@ class HTTPLoader:
         version = data["version"]
         commit = data.get("git_commit_id")
         tmpl = PromptTemplate(
-            template_id=name,
+            id=name,
+            name=name,
             version=version,
             jinja_source=data["jinja"],
             git_commit_id=commit,

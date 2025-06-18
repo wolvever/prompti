@@ -33,7 +33,8 @@ class FileSystemLoader:
         except Exception:
             commit = None
         tmpl = PromptTemplate(
-            template_id=name,
+            id=name,
+            name=name,
             version=version,
             jinja_source=text,
             git_commit_id=commit,
