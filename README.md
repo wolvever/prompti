@@ -1,7 +1,7 @@
 # Prompti
 
 Prompti is a provider‑agnostic asynchronous prompt engine built around the
-Agent‑to‑Agent (A2A) message format. Prompts are stored as Jinja templates and
+Agent‑to‑Agent (A2A) message format. Prompts are stored as YAML templates with Jinja-formatted text and
 may be loaded from disk, memory or a remote registry. All LLM calls are routed
 through a pluggable `ModelClient` so that calling code never deals with
 provider‑specific protocols.

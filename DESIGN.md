@@ -1,7 +1,7 @@
 # PromptI Design Overview
 
 This document summarizes the architecture of PromptI.  Each prompt is stored as a
-versioned Jinja template and rendered into the A2A message format before it is
+versioned YAML template (using Jinja formatting within text fields) and rendered into the A2A message format before it is
 sent to a language model via a pluggable client.
 
 ## 0 · High-level summary
@@ -10,7 +10,7 @@ The library contains three main layers:
 
 | Layer              | Purpose                                                            | Contract                                      |
 | ------------------ | ------------------------------------------------------------------ | --------------------------------------------- |
-| **PromptTemplate** | Render a Jinja revision to `Message[]` or stream results from an LLM | Works entirely in A2A messages                |
+| **PromptTemplate** | Render a YAML revision to `Message[]` or stream results from an LLM | Works entirely in A2A messages                |
 | **PromptEngine**   | Locate templates from files, HTTP, or memory and cache them         | Provides a simple `run(name, ...)` API        |
 | **ModelClient**    | Convert between A2A messages and provider protocols                 | Returns an async generator of A2A messages    |
 
@@ -26,9 +26,7 @@ Every exchange uses the Google A2A format with the fields:
 
 ## 2 · Core classes
 
-### PromptTemplate
-
-- Parses Jinja templates in a sandboxed environment
+- Parses YAML templates in a sandboxed environment with Jinja rendering
 - Provides `format()` for local rendering and `run()` to invoke a `ModelClient`
 
 ### PromptEngine

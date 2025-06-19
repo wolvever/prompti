@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Awaitable, Tuple
 
 import httpx
+import yaml
 
 from .template import PromptTemplate
 
@@ -24,12 +25,16 @@ class MemoryLoader:
         data = self.mapping.get(name)
         if not data:
             raise FileNotFoundError(name)
-        version = data.get("version", "0")
+        text = data.get("yaml", "")
+        ydata = yaml.safe_load(text)
+        version = str(ydata.get("version", data.get("version", "0")))
         tmpl = PromptTemplate(
             id=name,
             name=name,
             version=version,
-            jinja_source=data.get("jinja", ""),
+            labels=list(ydata.get("labels", [])),
+            required_variables=list(ydata.get("required_variables", [])),
+            messages=ydata.get("messages", []),
         )
         return version, tmpl
 
@@ -49,11 +54,15 @@ class HTTPLoader:
         if resp.status_code != 200:
             raise FileNotFoundError(name)
         data = resp.json()
-        version = data["version"]
+        text = data.get("yaml", "")
+        ydata = yaml.safe_load(text)
+        version = str(ydata.get("version", data.get("version", "0")))
         tmpl = PromptTemplate(
             id=name,
             name=name,
             version=version,
-            jinja_source=data["jinja"],
+            labels=list(ydata.get("labels", [])),
+            required_variables=list(ydata.get("required_variables", [])),
+            messages=ydata.get("messages", []),
         )
         return version, tmpl

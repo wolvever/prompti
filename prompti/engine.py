@@ -11,10 +11,13 @@ from pydantic import BaseModel
 
 from .message import Message
 from .template import PromptTemplate
+import yaml
 from .model_client import ModelConfig, ModelClient
 from .loaders import HTTPLoader, MemoryLoader
 
-TemplateLoader = Callable[[str, str | None], Awaitable[Tuple[str, PromptTemplate]]]
+TemplateLoader = Callable[
+    [str, str | None], Awaitable[Tuple[str, PromptTemplate]]
+]
 
 
 class FileSystemLoader:
@@ -28,12 +31,15 @@ class FileSystemLoader:
         """Load and return the template identified by ``name``."""
         path = self.base / f"{name}.jinja"
         text = path.read_text()
-        version = "1.0.0"
+        data = yaml.safe_load(text)
+        version = str(data.get("version", "0"))
         tmpl = PromptTemplate(
             id=name,
             name=name,
             version=version,
-            jinja_source=text,
+            labels=list(data.get("labels", [])),
+            required_variables=list(data.get("required_variables", [])),
+            messages=data.get("messages", []),
         )
         return version, tmpl
 
