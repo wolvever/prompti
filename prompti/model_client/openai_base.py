@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 from ..message import Message
 from .base import ModelClient, ModelConfig
@@ -19,27 +19,38 @@ class _OpenAICore(ModelClient):
     async def _run(
         self, messages: list[Message], model_cfg: ModelConfig
     ) -> AsyncGenerator[Message, None]:
-        oa_messages = []
+        """Translate A2A messages to the OpenAI format and stream the result."""
+
+        oa_messages: list[dict[str, Any]] = []
         for m in messages:
+            role = m.role
+            if m.kind == "tool_result":
+                role = "tool"
+
+            msg: dict[str, Any] = {"role": role}
+
             if m.kind == "text":
-                oa_messages.append({"role": m.role, "content": m.content})
+                msg["content"] = m.content
             elif m.kind == "tool_use":
-                data = json.loads(m.content)
-                oa_messages.append(
+                data = m.content if isinstance(m.content, dict) else json.loads(m.content)
+                msg["content"] = None
+                msg["tool_calls"] = [
                     {
-                        "role": m.role,
-                        "content": None,
-                        "tool_calls": [
-                            {
-                                "type": "function",
-                                "function": {
-                                    "name": data["name"],
-                                    "arguments": json.dumps(data.get("arguments", {})),
-                                },
-                            }
-                        ],
+                        "type": "function",
+                        "function": {
+                            "name": data.get("name"),
+                            "arguments": json.dumps(data.get("arguments", {})),
+                        },
                     }
-                )
+                ]
+            elif m.kind == "tool_result":
+                # Tool results are provided as role ``tool`` messages.
+                msg["content"] = json.dumps(m.content) if not isinstance(m.content, str) else m.content
+            else:
+                # drop thinking/other kinds from request
+                continue
+
+            oa_messages.append(msg)
 
         payload = {"model": model_cfg.model, "messages": oa_messages}
         payload.update(model_cfg.parameters)
@@ -64,5 +75,15 @@ class _OpenAICore(ModelClient):
                         }
                     ),
                 )
+        elif "function_call" in msg:
+            func = msg["function_call"]
+            yield Message(
+                role="assistant",
+                kind="tool_use",
+                content={
+                    "name": func.get("name"),
+                    "arguments": json.loads(func.get("arguments", "{}")),
+                },
+            )
         elif msg.get("content"):
             yield Message(role="assistant", kind="text", content=msg["content"])
