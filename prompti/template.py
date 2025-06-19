@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Representation and execution of Jinja2-based prompt templates."""
+
 from typing import Any, AsyncGenerator, List
 from pydantic import BaseModel
 from jinja2.sandbox import SandboxedEnvironment
@@ -52,6 +54,7 @@ class PromptTemplate(BaseModel):
         model_cfg: ModelConfig,
         client: ModelClient,
     ) -> AsyncGenerator[Message, None]:
+        """Stream results from executing the template via ``client``."""
         messages = self.format(variables, tag)
         async for m in client.run(messages, model_cfg=model_cfg):
             yield m

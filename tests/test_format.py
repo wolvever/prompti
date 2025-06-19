@@ -1,3 +1,5 @@
+"""Tests for template formatting."""
+
 import asyncio
 import pytest
 from prompti.engine import PromptEngine, Setting
