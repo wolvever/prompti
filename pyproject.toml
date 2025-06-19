@@ -14,6 +14,8 @@ dependencies = [
   "async-lru",
   "httpx>=0.25",
   "tenacity>=8",
+  "aiofiles",
+  "pyyaml",
   "prometheus-client",
   "opentelemetry-api",
   "opentelemetry-sdk",
