@@ -1,3 +1,15 @@
-Hello {{ name }},
-We received your issue "{{ issue }}".
-<assistant:tool_use>{"name":"lookupTicket","arguments":{"title":"{{ issue }}"}}</assistant:tool_use>
+version: 1.0
+labels: [dev]
+required_variables: [name, issue]
+messages:
+  - role: system
+    parts:
+      - type: text
+        text: You are a customer-support assistant.
+  - role: assistant
+    parts:
+      - type: text
+        text: |
+          Hi {{ name }}, your ticket "{{ issue }}" has been created.
+          We\'ll get back soon.
+

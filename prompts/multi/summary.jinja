@@ -1,0 +1,13 @@
+version: 1.0
+labels: [dev]
+required_variables: [summary]
+messages:
+  - role: system
+    parts:
+      - type: text
+        text: |
+          Please summarize the following text.
+  - role: assistant
+    parts:
+      - type: text
+        text: "{{ summary }}"
