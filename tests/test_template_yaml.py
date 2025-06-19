@@ -1,3 +1,5 @@
+"""Tests for YAML-based template loading."""
+
 import pytest
 from prompti.engine import PromptEngine, Setting
 

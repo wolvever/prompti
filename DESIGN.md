@@ -7,6 +7,7 @@
 3. **不可变 Revision + 可变 Label**：`prod / dev / canary` 随时热切换。
 4. **完整 A2A 工作流**：`tool_use` / `tool_result` 均为标准 `kind`，无额外参数。
 5. **全链路异步 & 云原生可观测性**：OTel Trace、Prometheus Metric。
+6. **A/B 实验**：Gateway 或 SDK 双分流模式，标签化模板版本。
 
 #### 1.2 非目标
 
@@ -302,3 +303,71 @@ for row in sorted(rows, key=step):
 ---
 
 这样，Prompt Library 的 **模板管理 / 版本策略 / 运行时容错 / CI 校验 / 回放子系统** 全面落地，Prometheus 指标也集中到单一章节，方便运维与监控。
+### 7 A/B 实验框架
+
+Prompti 在生产环境支持 **Gateway Split** 与 **SDK Split** 两种模式，模板版本通过
+`tag` 形式区分，便于多实验共存。
+
+#### 7.1 分流模式
+
+| 模式 | 决策者 | 部署层级 | 实现 | 优势 |
+| --- | --- | --- | --- | --- |
+| Gateway Split | Ingress / Service Mesh | L7 网络层 | Istio VirtualService weight / Envoy Gateway backendRef | SLO 回滚、镜像流量 |
+| SDK Split | PromptEngine + ExperimentRegistry | Python 进程 | Unleash `% Split`、GrowthBook CDN 等 | 无网关也可用，FaaS 友好 |
+
+#### 7.2 数据模型
+
+模板标签包含 `experiment_id=variant`，例如 `clarify_prompt=A`。`ExperimentRegistry`
+接口用于查询当前用户在某个实验中的分流结果：
+
+```python
+class ExperimentSplit(BaseModel):
+    experiment_id: str | None
+    variant: str | None
+
+class ExperimentRegistry(Protocol):
+    async def get_split(self, prompt: str, user_id: str) -> ExperimentSplit:
+        ...
+```
+
+#### 7.3 PromptEngine 实现片段
+
+```python
+if headers and "x-variant" in headers:             # Gateway Split
+    exp_id, variant = headers.get("x-exp", ""), headers["x-variant"]
+else:                                              # SDK Split
+    split = await registry.get_split(prompt_name, user_id)
+    exp_id, variant = split.experiment_id, split.variant
+
+tag = f"{exp_id}={variant}" if exp_id and variant in tmpl.labels else "prod"
+ab_counter.labels(exp_id or "none", variant or "control").inc()
+```
+
+#### 7.4 哈希算法
+
+```python
+def bucket(hash_key: str, split: dict[str, float]) -> str:
+    h = xxhash.xxh32(hash_key).intdigest() / 2**32
+    total = 0.0
+    for v, pct in split.items():
+        total += pct
+        if h < total:
+            return v
+    return next(iter(split))
+```
+
+与 Unleash stickiness 与 GrowthBook Hash 兼容，保证多实例 50/50 分布。
+
+#### 7.5 指标
+
+| 指标 | labels | 说明 |
+| --- | --- | --- |
+| `prompt_ab_request_total` | `experiment,variant` | 每次调用加 1 |
+| `llm_request_latency_seconds` | `provider,experiment,variant` | 观测延迟 |
+
+实验信息同时写入 OTel span：`ab.experiment` / `ab.variant`。
+
+#### 7.6 插件对接
+
+内置 **UnleashRegistry** 和 **GrowthBookRegistry**，外部框架仅需实现
+`ExperimentRegistry` 即可与 PromptEngine 配合。

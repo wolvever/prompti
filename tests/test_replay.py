@@ -1,3 +1,5 @@
+"""Tests for logging and replaying model client responses."""
+
 import json
 import asyncio
 

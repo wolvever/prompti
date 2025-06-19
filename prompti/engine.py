@@ -8,12 +8,22 @@ from typing import Any, AsyncGenerator, Awaitable, Callable, Tuple, Dict
 
 from async_lru import alru_cache
 from pydantic import BaseModel
+from opentelemetry import trace
+from prometheus_client import Counter
 
 from .message import Message
 from .template import PromptTemplate
 import yaml
 from .model_client import ModelConfig, ModelClient
 from .loaders import HTTPLoader, MemoryLoader
+from .experiment import ExperimentRegistry, bucket
+
+_tracer = trace.get_tracer(__name__)
+ab_counter = Counter(
+    "prompt_ab_request_total",
+    "AB experiment requests",
+    labelnames=["experiment", "variant"],
+)
 
 TemplateLoader = Callable[
     [str, str | None], Awaitable[Tuple[str, PromptTemplate]]
@@ -74,11 +84,43 @@ class PromptEngine:
         tags: str | None,
         model_cfg: ModelConfig,
         client: ModelClient,
+        *,
+        headers: dict[str, str] | None = None,
+        registry: "ExperimentRegistry | None" = None,
+        user_id: str = "anon",
     ) -> AsyncGenerator[Message, None]:
         """Stream messages produced by running the template via ``client``."""
         tmpl = await self._resolve(template_name, tags)
-        async for msg in tmpl.run(variables, tags, model_cfg, client=client):
-            yield msg
+
+        exp_id: str | None = None
+        variant: str | None = None
+        if headers and "x-variant" in headers:
+            exp_id = headers.get("x-exp", "") or None
+            variant = headers.get("x-variant")
+        elif registry is not None:
+            split = await registry.get_split(template_name, user_id)
+            exp_id = split.experiment_id
+            variant = split.variant or bucket(user_id, split.traffic_split or {})
+
+        tag = None
+        if exp_id and variant:
+            candidate = f"{exp_id}={variant}"
+            if candidate in tmpl.labels:
+                tag = candidate
+        if tag is None and "prod" in tmpl.labels:
+            tag = "prod"
+
+        ab_counter.labels(exp_id or "none", variant or "control").inc()
+        with _tracer.start_as_current_span(
+            "prompt.run",
+            attributes={
+                "prompt.version": tmpl.version,
+                "ab.experiment": exp_id or "none",
+                "ab.variant": variant or "control",
+            },
+        ):
+            async for msg in tmpl.run(variables, tag, model_cfg, client=client):
+                yield msg
 
     @classmethod
     def from_setting(cls, setting: "Setting") -> "PromptEngine":
