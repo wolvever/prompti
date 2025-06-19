@@ -12,6 +12,13 @@ from .model_client import (
     OpenRouterClient,
 )
 from .replay import ReplayEngine, ModelClientRecorder
+from .experiment import (
+    ExperimentRegistry,
+    ExperimentSplit,
+    UnleashRegistry,
+    GrowthBookRegistry,
+    bucket,
+)
 
 __all__ = [
     "Message",
@@ -25,4 +32,9 @@ __all__ = [
     "OpenRouterClient",
     "ReplayEngine",
     "ModelClientRecorder",
+    "ExperimentRegistry",
+    "ExperimentSplit",
+    "UnleashRegistry",
+    "GrowthBookRegistry",
+    "bucket",
 ]

@@ -34,4 +34,7 @@ and **LiteLLM**.  Each provider has its own `ModelClient` subclass (e.g.
 `OpenAIClient`).  Set the corresponding API key environment variables such as
 `OPENAI_API_KEY` before running examples.
 
+Prompti also supports SDK-level A/B experiments via the `ExperimentRegistry`
+interface with built-in **Unleash** and **GrowthBook** adapters.
+
 See `DESIGN.md` for a more detailed description of the architecture.
