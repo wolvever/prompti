@@ -11,6 +11,7 @@ from .model_client import (
     LiteLLMClient,
     OpenRouterClient,
 )
+from .replay import ReplayEngine, ModelClientRecorder
 
 __all__ = [
     "Message",
@@ -22,4 +23,6 @@ __all__ = [
     "ClaudeClient",
     "LiteLLMClient",
     "OpenRouterClient",
+    "ReplayEngine",
+    "ModelClientRecorder",
 ]
