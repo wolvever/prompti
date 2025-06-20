@@ -104,6 +104,8 @@ impl std::fmt::Display for EnvVarError {
     }
 }
 
+impl std::error::Error for EnvVarError {}
+
 impl ModelError {
     /// Check if the error is retryable
     pub fn is_retryable(&self) -> bool {
