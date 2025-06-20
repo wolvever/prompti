@@ -88,6 +88,7 @@ class PromptEngine:
         headers: dict[str, str] | None = None,
         registry: "ExperimentRegistry | None" = None,
         user_id: str = "anon",
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         """Stream messages produced by running the template via ``client``."""
         tmpl = await self._resolve(template_name, tags)
@@ -119,7 +120,13 @@ class PromptEngine:
                 "ab.variant": variant or "control",
             },
         ):
-            async for msg in tmpl.run(variables, tag, model_cfg, client=client):
+            async for msg in tmpl.run(
+                variables,
+                tag,
+                model_cfg,
+                client=client,
+                tools=tools,
+            ):
                 yield msg
 
     @classmethod

@@ -43,21 +43,74 @@ async def test_openai_like_providers(provider, url):
     result = [m async for m in mc.run(messages, cfg)]
     assert result[0].content == "ok"
 
+    
+@pytest.mark.asyncio
+async def test_model_client_tools():
+    async def handler(request: Request):
+        return Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "tool_calls": [
+                                {
+                                    "type": "function",
+                                    "function": {"name": "ping", "arguments": "{}"},
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    mc = OpenAIClient(client=httpx.AsyncClient(transport=transport))
+    cfg = ModelConfig(provider="openai", model="gpt-4o")
+    messages = [Message(role="user", kind="text", content="hi")]
+
+    result = [m async for m in mc.run(messages, cfg, tools=[{"type": "function", "function": {"name": "ping"}}])]
+    assert result[-1].kind == "tool_use"
 
 
 @pytest.mark.asyncio
-async def test_litellm_client(monkeypatch):
-    called = {}
+async def test_model_client_tool_request_format():
+    calls: list[dict] = []
 
-    async def fake_acompletion(*args, **kwargs):
-        called.update(kwargs)
-        return litellm.mock_completion(model=kwargs.get("model"), messages=kwargs.get("messages", []), mock_response="ok")
+    async def handler(request: Request):
+        payload = json.loads(request.content.decode()) if request.content else {}
+        calls.append(payload)
+        if len(calls) == 1:
+            return Response(
+                200,
+                json={
+                    "choices": [
+                        {
+                            "message": {
+                                "tool_calls": [
+                                    {
+                                        "type": "function",
+                                        "function": {"name": "ping", "arguments": "{}"},
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+            )
+        else:
+            return Response(200, json={"choices": [{"message": {"content": "done"}}]})
 
-    monkeypatch.setattr(litellm, "acompletion", fake_acompletion)
-    os.environ["LITELLM_ENDPOINT"] = "http://localhost:4000/v1/chat/completions"
-    mc = LiteLLMClient(client=httpx.AsyncClient())
-    cfg = ModelConfig(provider="litellm", model="gpt-4o")
+    transport = httpx.MockTransport(handler)
+    mc = OpenAIClient(client=httpx.AsyncClient(transport=transport))
+    cfg = ModelConfig(provider="openai", model="gpt-4o")
     messages = [Message(role="user", kind="text", content="hi")]
-    result = [m async for m in mc.run(messages, cfg)]
-    assert result[0].content == "ok"
-    assert called["base_url"] == os.environ["LITELLM_ENDPOINT"]
+
+    first = [m async for m in mc.run(messages, cfg, tools=[{"type": "function", "function": {"name": "ping"}}])]
+    messages.extend(first)
+    messages.append(Message(role="tool", kind="tool_result", content="pong"))
+    _ = [m async for m in mc.run(messages, cfg)]
+
+    assert calls[1]["messages"][-2]["tool_calls"][0]["function"]["name"] == "ping"
+    assert calls[1]["messages"][-1] == {"role": "tool", "content": "pong"}

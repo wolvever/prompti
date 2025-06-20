@@ -43,19 +43,25 @@ class ModelClient:
 
     @retry(wait=wait_exponential_jitter(), stop=stop_after_attempt(3))
     async def run(
-        self, messages: list[Message], model_cfg: ModelConfig
+        self,
+        messages: list[Message],
+        model_cfg: ModelConfig,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
-        """Execute the LLM call."""
+        """Execute the LLM call and forward ``tools`` definitions to the LLM."""
 
         with self._tracer.start_as_current_span(
             "llm.call", attributes={"provider": self.provider, "model": model_cfg.model}
         ):
             with self._histogram.labels(self.provider).time():
-                async for msg in self._run(messages, model_cfg):
+                async for msg in self._run(messages, model_cfg, tools=tools):
                     yield msg
 
     async def _run(
-        self, messages: list[Message], model_cfg: ModelConfig
+        self,
+        messages: list[Message],
+        model_cfg: ModelConfig,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         raise NotImplementedError
         yield  # This line will never execute but makes this an async generator

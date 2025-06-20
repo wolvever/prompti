@@ -52,7 +52,7 @@ async def test_engine_sdk_split(tmp_path):
         def __init__(self):
             super().__init__(client=httpx.AsyncClient(http2=False))
 
-        async def _run(self, messages, model_cfg):
+        async def _run(self, messages, model_cfg, tools=None):
             yield Message(role="assistant", kind="text", content="ok")
 
     dummy = Dummy()
