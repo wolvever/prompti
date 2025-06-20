@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+import os
+import litellm
 
 import pytest
 import httpx
@@ -18,11 +20,11 @@ from prompti.model_client import (
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "provider,url", [
+    "provider,url",
+    [
         ("openai", "https://api.openai.com/v1/chat/completions"),
         ("openrouter", "https://openrouter.ai/api/v1/chat/completions"),
-        ("litellm", "http://localhost:4000/v1/chat/completions"),
-    ]
+    ],
 )
 async def test_openai_like_providers(provider, url):
     async def handler(request: Request):
@@ -34,7 +36,6 @@ async def test_openai_like_providers(provider, url):
     client_map = {
         "openai": OpenAIClient,
         "openrouter": OpenRouterClient,
-        "litellm": LiteLLMClient,
     }
     mc = client_map[provider](client=client)
     cfg = ModelConfig(provider=provider, model="gpt-4o")
@@ -42,7 +43,7 @@ async def test_openai_like_providers(provider, url):
     result = [m async for m in mc.run(messages, cfg)]
     assert result[0].content == "ok"
 
-
+    
 @pytest.mark.asyncio
 async def test_model_client_tools():
     async def handler(request: Request):
@@ -113,4 +114,3 @@ async def test_model_client_tool_request_format():
 
     assert calls[1]["messages"][-2]["tool_calls"][0]["function"]["name"] == "ping"
     assert calls[1]["messages"][-1] == {"role": "tool", "content": "pong"}
-

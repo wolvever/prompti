@@ -19,6 +19,11 @@ class ModelConfig(BaseModel):
     provider: str
     model: str
     parameters: dict[str, Any] = {}
+    api_key: str | None = None
+    api_base: str | None = None
+    temperature: float = 0.7
+    max_tokens: int | None = None
+    stream: bool = True
 
 
 class ModelClient:
@@ -59,6 +64,7 @@ class ModelClient:
         tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         raise NotImplementedError
+        yield  # This line will never execute but makes this an async generator
 
     async def close(self) -> None:
         """Close the underlying HTTP client."""
