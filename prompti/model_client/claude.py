@@ -14,14 +14,15 @@ class ClaudeClient(ModelClient):
     """Client for Anthropic Claude models."""
 
     provider = "claude"
+    api_url = "https://api.anthropic.com/v1/messages"
+    api_key_var = "ANTHROPIC_API_KEY"
 
     async def _run(
         self, messages: list[Message], model_cfg: ModelConfig
     ) -> AsyncGenerator[Message, None]:
         """Translate A2A messages to Claude blocks and stream the response."""
 
-        url = "https://api.anthropic.com/v1/messages"
-        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        api_key = os.environ.get(self.api_key_var, "")
         headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
 
         claude_msgs: list[dict[str, Any]] = []
@@ -47,9 +48,10 @@ class ClaudeClient(ModelClient):
             if blocks:
                 claude_msgs.append({"role": m.role, "content": blocks})
 
-        payload: dict[str, Any] = {"model": model_cfg.model, "messages": claude_msgs}
+        payload: dict[str, Any] = {"model": model_cfg.model, "messages": claude_msgs, 'max_tokens': 1024}
         payload.update(model_cfg.parameters)
-        resp = await self._client.post(url, json=payload, headers=headers)
+        print(payload)
+        resp = await self._client.post(self.api_url, json=payload, headers=headers)
         if resp.status_code != 200:
             yield Message(role="assistant", kind="error", content=resp.text)
             return
