@@ -29,8 +29,12 @@ class _OpenAICore(ModelClient):
 
             msg: dict[str, Any] = {"role": role}
 
-            if m.kind == "text":
+            if m.kind == "text" or m.kind == "thinking":
                 msg["content"] = m.content
+            elif m.kind == "image_url":
+                msg["content"] = [
+                    {"type": "image_url", "image_url": {"url": m.content}}
+                ]
             elif m.kind == "tool_use":
                 data = m.content if isinstance(m.content, dict) else json.loads(m.content)
                 msg["content"] = None
@@ -45,9 +49,11 @@ class _OpenAICore(ModelClient):
                 ]
             elif m.kind == "tool_result":
                 # Tool results are provided as role ``tool`` messages.
-                msg["content"] = json.dumps(m.content) if not isinstance(m.content, str) else m.content
+                msg["content"] = (
+                    json.dumps(m.content) if not isinstance(m.content, str) else m.content
+                )
             else:
-                # drop thinking/other kinds from request
+                # drop unsupported kinds from request
                 continue
 
             oa_messages.append(msg)
