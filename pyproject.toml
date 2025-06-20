@@ -20,6 +20,7 @@ dependencies = [
   "opentelemetry-api",
   "opentelemetry-sdk",
   "xxhash",
+  "litellm>=1.36",
 ]
 
 [project.optional-dependencies]
