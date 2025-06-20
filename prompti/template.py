@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Representation and execution of Jinja2-based prompt templates."""
 
-from typing import Any, AsyncGenerator, List
+from typing import Any, AsyncGenerator
 from pydantic import BaseModel
 from jinja2.sandbox import SandboxedEnvironment
 from jinja2 import StrictUndefined
@@ -27,7 +27,7 @@ class PromptTemplate(BaseModel):
         self,
         variables: dict[str, Any],
         tag: str | None = None,
-    ) -> List[Message]:
+    ) -> list[Message]:
         missing = [v for v in self.required_variables if v not in variables]
         if missing:
             raise KeyError(f"missing variables: {missing}")
@@ -53,8 +53,16 @@ class PromptTemplate(BaseModel):
         tag: str | None,
         model_cfg: ModelConfig,
         client: ModelClient,
+        *,
+        tools: dict[str, Any] | None = None,
     ) -> AsyncGenerator[Message, None]:
         """Stream results from executing the template via ``client``."""
-        messages = self.format(variables, tag)
-        async for m in client.run(messages, model_cfg=model_cfg):
-            yield m
+        history = self.format(variables, tag)
+        while True:
+            out: list[Message] = []
+            async for msg in client.run(history, model_cfg=model_cfg, tools=tools):
+                out.append(msg)
+                yield msg
+            history.extend(out)
+            if not out or out[-1].kind != "tool_result":
+                break

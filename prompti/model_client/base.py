@@ -3,6 +3,8 @@ from __future__ import annotations
 """Base classes for model clients."""
 
 from typing import Any, AsyncGenerator
+import inspect
+import json
 
 import httpx
 from opentelemetry import trace
@@ -38,9 +40,12 @@ class ModelClient:
 
     @retry(wait=wait_exponential_jitter(), stop=stop_after_attempt(3))
     async def run(
-        self, messages: list[Message], model_cfg: ModelConfig
+        self,
+        messages: list[Message],
+        model_cfg: ModelConfig,
+        tools: dict[str, Any] | None = None,
     ) -> AsyncGenerator[Message, None]:
-        """Execute the LLM call."""
+        """Execute the LLM call and optionally run ``tools`` for ``tool_use`` messages."""
 
         with self._tracer.start_as_current_span(
             "llm.call", attributes={"provider": self.provider, "model": model_cfg.model}
@@ -48,6 +53,22 @@ class ModelClient:
             with self._histogram.labels(self.provider).time():
                 async for msg in self._run(messages, model_cfg):
                     yield msg
+                    if tools is not None and msg.kind == "tool_use":
+                        data = msg.content
+                        if isinstance(data, str):
+                            try:
+                                data = json.loads(data)
+                            except Exception:
+                                data = {}
+                        name = data.get("name") if isinstance(data, dict) else None
+                        args = data.get("arguments", {}) if isinstance(data, dict) else {}
+                        func = tools.get(name) if name else None
+                        if func:
+                            if inspect.iscoroutinefunction(func):
+                                res = await func(**args)
+                            else:
+                                res = func(**args)
+                            yield Message(role="tool", kind="tool_result", content=res)
 
     async def _run(
         self, messages: list[Message], model_cfg: ModelConfig
