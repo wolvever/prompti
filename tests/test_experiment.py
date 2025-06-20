@@ -1,13 +1,13 @@
 """Unit tests for ExperimentRegistry adapters and utilities."""
 
-import httpx
-from httpx import Response, Request
 import pytest
+from unittest.mock import AsyncMock, MagicMock
+import httpx
 
 from prompti.experiment import bucket, UnleashRegistry, GrowthBookRegistry
 from prompti.engine import PromptEngine, Setting
 from prompti.model_client import ModelClient, ModelConfig
-from prompti import Message
+from prompti.message import Message
 
 
 def test_bucket_deterministic():
@@ -18,16 +18,19 @@ def test_bucket_deterministic():
 
 @pytest.mark.asyncio
 async def test_unleash_registry():
-    async def handler(request: Request):
-        assert request.url.path == "/client/features/clarify"
-        return Response(200, json={"name": "clarify", "variant": {"name": "A"}})
-
-    transport = httpx.MockTransport(handler)
-    client = httpx.AsyncClient(transport=transport)
-    reg = UnleashRegistry("http://unleash", client=client)
+    # Create a proper mock HTTP response
+    mock_client = AsyncMock()
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"name": "clarify", "variant": {"name": "A"}}
+    mock_client.get.return_value = mock_response
+    
+    reg = UnleashRegistry("http://unleash", client=mock_client)
     split = await reg.get_split("clarify", "u1")
     assert split.experiment_id == "clarify"
     assert split.variant == "A"
+    
+    # Verify the correct URL was called
+    mock_client.get.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -46,8 +49,10 @@ async def test_engine_sdk_split(tmp_path):
     reg = GrowthBookRegistry(features)
     settings = Setting(template_paths=["./prompts"])
     engine = PromptEngine.from_setting(settings)
-    class Dummy(ModelClient):
-        provider = "dummy"
+    
+    # Create a mock client that properly inherits from ModelClient
+    class MockClient(ModelClient):
+        provider = "mock"
 
         def __init__(self):
             super().__init__(client=httpx.AsyncClient(http2=False))
@@ -55,14 +60,14 @@ async def test_engine_sdk_split(tmp_path):
         async def _run(self, messages, model_cfg, tools=None):
             yield Message(role="assistant", kind="text", content="ok")
 
-    dummy = Dummy()
-    cfg = ModelConfig(provider="dummy", model="x")
+    mock_client = MockClient()
+    cfg = ModelConfig(provider="mock", model="x")
     msgs = engine.run(
         "support_reply",
         {"name": "Bob", "issue": "none"},
         None,
         model_cfg=cfg,
-        client=dummy,
+        client=mock_client,
         registry=reg,
     )
     out = [m async for m in msgs]

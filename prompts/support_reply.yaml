@@ -1,5 +1,7 @@
+id: support_reply
+name: Customer Support Reply
 version: 1.0
-labels: [dev]
+labels: [customer-support, automated-response]
 required_variables: [name, issue]
 messages:
   - role: system
@@ -11,5 +13,4 @@ messages:
       - type: text
         text: |
           Hi {{ name }}, your ticket "{{ issue }}" has been created.
-          We\'ll get back soon.
-
+          We'll get back soon. 
