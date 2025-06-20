@@ -76,3 +76,47 @@ async def test_model_client_tools():
     assert result[-1].kind == "tool_result"
     assert result[-1].content == "pong"
 
+
+@pytest.mark.asyncio
+async def test_model_client_tool_request_format():
+    calls: list[dict] = []
+
+    async def handler(request: Request):
+        payload = json.loads(request.content.decode()) if request.content else {}
+        calls.append(payload)
+        if len(calls) == 1:
+            return Response(
+                200,
+                json={
+                    "choices": [
+                        {
+                            "message": {
+                                "tool_calls": [
+                                    {
+                                        "type": "function",
+                                        "function": {"name": "ping", "arguments": "{}"},
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+            )
+        else:
+            return Response(200, json={"choices": [{"message": {"content": "done"}}]})
+
+    transport = httpx.MockTransport(handler)
+    mc = OpenAIClient(client=httpx.AsyncClient(transport=transport))
+    cfg = ModelConfig(provider="openai", model="gpt-4o")
+    messages = [Message(role="user", kind="text", content="hi")]
+
+    async def ping():
+        return "pong"
+
+    first = [m async for m in mc.run(messages, cfg, tools={"ping": ping})]
+    messages.extend(first)
+    _ = [m async for m in mc.run(messages, cfg)]
+
+    assert calls[1]["messages"][-2]["tool_calls"][0]["function"]["name"] == "ping"
+    assert calls[1]["messages"][-1] == {"role": "tool", "content": "pong"}
+
