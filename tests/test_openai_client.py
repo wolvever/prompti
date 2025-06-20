@@ -30,4 +30,20 @@ async def test_openai_client():
         data = json.loads(out[0].content)
         assert data["name"] == "get_time"
 
+        cfg = ModelConfig(provider="openai", model="gpt-4o")
+        messages = [Message(role="user", kind="text", content="Think step by step: what is 2+2?")]
+        out = [m async for m in client.run(messages, cfg)]
+        assert "4" in out[0].content
+        assert "step" in out[0].content.lower()
+
+        messages = [
+            Message(
+                role="user",
+                kind="image_url",
+                content="https://example.com/photo.png",
+            )
+        ]
+        out = [m async for m in client.run(messages, cfg)]
+        assert "sunset" in out[0].content.lower()
+
         await client.close()
