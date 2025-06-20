@@ -88,7 +88,6 @@ class PromptEngine:
         headers: dict[str, str] | None = None,
         registry: "ExperimentRegistry | None" = None,
         user_id: str = "anon",
-        tool_funcs: dict[str, Any] | None = None,
         tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         """Stream messages produced by running the template via ``client``."""
@@ -126,7 +125,6 @@ class PromptEngine:
                 tag,
                 model_cfg,
                 client=client,
-                tool_funcs=tool_funcs,
                 tools=tools,
             ):
                 yield msg

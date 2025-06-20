@@ -11,10 +11,8 @@ class Dummy(ModelClient):
         super().__init__(client=httpx.AsyncClient(http2=False))
 
     async def _run(self, messages, model_cfg, tools=None):
-        if not any(m.kind == "tool_result" for m in messages):
-            yield Message(role="assistant", kind="tool_use", content={"name": "ping", "arguments": {}})
-        else:
-            yield Message(role="assistant", kind="text", content="done")
+        self.received_tools = tools
+        yield Message(role="assistant", kind="text", content="ok")
 
 
 @pytest.mark.asyncio
@@ -23,9 +21,7 @@ async def test_engine_with_tools():
     dummy = Dummy()
     cfg = ModelConfig(provider="dummy", model="x")
 
-    async def ping():
-        return "pong"
-
+    tools = [{"type": "function", "function": {"name": "ping"}}]
     out = [
         m
         async for m in engine.run(
@@ -34,8 +30,8 @@ async def test_engine_with_tools():
             None,
             model_cfg=cfg,
             client=dummy,
-            tool_funcs={"ping": ping},
+            tools=tools,
         )
     ]
-    assert out[-1].content == "done"
-    assert any(m.kind == "tool_result" for m in out)
+    assert dummy.received_tools == tools
+    assert out[-1].content == "ok"
