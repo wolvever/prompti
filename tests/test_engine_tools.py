@@ -10,7 +10,7 @@ class Dummy(ModelClient):
     def __init__(self):
         super().__init__(client=httpx.AsyncClient(http2=False))
 
-    async def _run(self, messages, model_cfg):
+    async def _run(self, messages, model_cfg, tools=None):
         if not any(m.kind == "tool_result" for m in messages):
             yield Message(role="assistant", kind="tool_use", content={"name": "ping", "arguments": {}})
         else:
@@ -26,13 +26,16 @@ async def test_engine_with_tools():
     async def ping():
         return "pong"
 
-    out = [m async for m in engine.run(
-        "support_reply",
-        {"name": "Bob", "issue": "none"},
-        None,
-        model_cfg=cfg,
-        client=dummy,
-        tools={"ping": ping},
-    )]
+    out = [
+        m
+        async for m in engine.run(
+            "support_reply",
+            {"name": "Bob", "issue": "none"},
+            None,
+            model_cfg=cfg,
+            client=dummy,
+            tool_funcs={"ping": ping},
+        )
+    ]
     assert out[-1].content == "done"
     assert any(m.kind == "tool_result" for m in out)

@@ -3,6 +3,8 @@ from __future__ import annotations
 """Representation and execution of Jinja2-based prompt templates."""
 
 from typing import Any, AsyncGenerator
+import inspect
+import json
 from pydantic import BaseModel
 from jinja2.sandbox import SandboxedEnvironment
 from jinja2 import StrictUndefined
@@ -54,15 +56,33 @@ class PromptTemplate(BaseModel):
         model_cfg: ModelConfig,
         client: ModelClient,
         *,
-        tools: dict[str, Any] | None = None,
+        tool_funcs: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         """Stream results from executing the template via ``client``."""
         history = self.format(variables, tag)
         while True:
-            out: list[Message] = []
+            used = False
             async for msg in client.run(history, model_cfg=model_cfg, tools=tools):
-                out.append(msg)
+                history.append(msg)
                 yield msg
-            history.extend(out)
-            if not out or out[-1].kind != "tool_result":
+                if msg.kind == "tool_use" and tool_funcs:
+                    data = msg.content
+                    if isinstance(data, str):
+                        try:
+                            data = json.loads(data)
+                        except Exception:
+                            data = {}
+                    func = tool_funcs.get(data.get("name")) if isinstance(data, dict) else None
+                    args = data.get("arguments", {}) if isinstance(data, dict) else {}
+                    if func:
+                        if inspect.iscoroutinefunction(func):
+                            res = await func(**args)
+                        else:
+                            res = func(**args)
+                        tool_msg = Message(role="tool", kind="tool_result", content=res)
+                        history.append(tool_msg)
+                        yield tool_msg
+                        used = True
+            if not used:
                 break

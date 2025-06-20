@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import AsyncGenerator, Iterable, Callable
+from typing import Any, AsyncGenerator, Iterable, Callable
 from uuid import uuid4
 from datetime import datetime, timezone
 
@@ -55,7 +55,10 @@ class ModelClientRecorder(ModelClient):
         await file.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     async def _run(
-        self, messages: list[Message], model_cfg: ModelConfig
+        self,
+        messages: list[Message],
+        model_cfg: ModelConfig,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         self._trace_id = str(uuid4())
         step = 0
@@ -74,7 +77,7 @@ class ModelClientRecorder(ModelClient):
             )
             step += 1
             try:
-                async for msg in self._wrapped.run(messages, model_cfg):
+                async for msg in self._wrapped.run(messages, model_cfg, tools=tools):
                     direction = "delta" if msg.kind == "tool_use" else "res"
                     await self._write_row(f, step, direction, msg.model_dump(), meta)
                     step += 1

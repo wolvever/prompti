@@ -16,7 +16,10 @@ class ClaudeClient(ModelClient):
     provider = "claude"
 
     async def _run(
-        self, messages: list[Message], model_cfg: ModelConfig
+        self,
+        messages: list[Message],
+        model_cfg: ModelConfig,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         """Translate A2A messages to Claude blocks and stream the response."""
 
@@ -49,6 +52,8 @@ class ClaudeClient(ModelClient):
 
         payload: dict[str, Any] = {"model": model_cfg.model, "messages": claude_msgs}
         payload.update(model_cfg.parameters)
+        if tools is not None:
+            payload["tools"] = tools
         resp = await self._client.post(url, json=payload, headers=headers)
         if resp.status_code != 200:
             yield Message(role="assistant", kind="error", content=resp.text)

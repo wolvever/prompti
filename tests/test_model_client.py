@@ -69,12 +69,8 @@ async def test_model_client_tools():
     cfg = ModelConfig(provider="openai", model="gpt-4o")
     messages = [Message(role="user", kind="text", content="hi")]
 
-    async def ping():
-        return "pong"
-
-    result = [m async for m in mc.run(messages, cfg, tools={"ping": ping})]
-    assert result[-1].kind == "tool_result"
-    assert result[-1].content == "pong"
+    result = [m async for m in mc.run(messages, cfg, tools=[{"type": "function", "function": {"name": "ping"}}])]
+    assert result[-1].kind == "tool_use"
 
 
 @pytest.mark.asyncio
@@ -110,11 +106,9 @@ async def test_model_client_tool_request_format():
     cfg = ModelConfig(provider="openai", model="gpt-4o")
     messages = [Message(role="user", kind="text", content="hi")]
 
-    async def ping():
-        return "pong"
-
-    first = [m async for m in mc.run(messages, cfg, tools={"ping": ping})]
+    first = [m async for m in mc.run(messages, cfg, tools=[{"type": "function", "function": {"name": "ping"}}])]
     messages.extend(first)
+    messages.append(Message(role="tool", kind="tool_result", content="pong"))
     _ = [m async for m in mc.run(messages, cfg)]
 
     assert calls[1]["messages"][-2]["tool_calls"][0]["function"]["name"] == "ping"

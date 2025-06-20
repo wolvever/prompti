@@ -17,7 +17,10 @@ class _OpenAICore(ModelClient):
     api_key_var: str
 
     async def _run(
-        self, messages: list[Message], model_cfg: ModelConfig
+        self,
+        messages: list[Message],
+        model_cfg: ModelConfig,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         """Translate A2A messages to the OpenAI format and stream the result."""
 
@@ -60,6 +63,8 @@ class _OpenAICore(ModelClient):
 
         payload = {"model": model_cfg.model, "messages": oa_messages}
         payload.update(model_cfg.parameters)
+        if tools is not None:
+            payload["tools"] = tools
         api_key = os.environ.get(self.api_key_var, "")
         headers = {"Authorization": f"Bearer {api_key}"}
         resp = await self._client.post(self.api_url, json=payload, headers=headers)

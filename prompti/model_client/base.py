@@ -3,8 +3,6 @@ from __future__ import annotations
 """Base classes for model clients."""
 
 from typing import Any, AsyncGenerator
-import inspect
-import json
 
 import httpx
 from opentelemetry import trace
@@ -43,35 +41,22 @@ class ModelClient:
         self,
         messages: list[Message],
         model_cfg: ModelConfig,
-        tools: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
-        """Execute the LLM call and optionally run ``tools`` for ``tool_use`` messages."""
+        """Execute the LLM call and forward ``tools`` definitions to the LLM."""
 
         with self._tracer.start_as_current_span(
             "llm.call", attributes={"provider": self.provider, "model": model_cfg.model}
         ):
             with self._histogram.labels(self.provider).time():
-                async for msg in self._run(messages, model_cfg):
+                async for msg in self._run(messages, model_cfg, tools=tools):
                     yield msg
-                    if tools is not None and msg.kind == "tool_use":
-                        data = msg.content
-                        if isinstance(data, str):
-                            try:
-                                data = json.loads(data)
-                            except Exception:
-                                data = {}
-                        name = data.get("name") if isinstance(data, dict) else None
-                        args = data.get("arguments", {}) if isinstance(data, dict) else {}
-                        func = tools.get(name) if name else None
-                        if func:
-                            if inspect.iscoroutinefunction(func):
-                                res = await func(**args)
-                            else:
-                                res = func(**args)
-                            yield Message(role="tool", kind="tool_result", content=res)
 
     async def _run(
-        self, messages: list[Message], model_cfg: ModelConfig
+        self,
+        messages: list[Message],
+        model_cfg: ModelConfig,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         raise NotImplementedError
 
