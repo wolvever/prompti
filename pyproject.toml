@@ -12,7 +12,7 @@ dependencies = [
   "pydantic>=2",
   "jinja2>=3",
   "async-lru",
-  "httpx>=0.25",
+  "httpx[http2]>=0.25",
   "tenacity>=8",
   "aiofiles",
   "pyyaml",
@@ -21,6 +21,8 @@ dependencies = [
   "opentelemetry-sdk",
   "xxhash",
   "litellm>=1.36",
+  "pytest>=8.4.1",
+  "pytest-asyncio>=1.0.0",
 ]
 
 [project.optional-dependencies]

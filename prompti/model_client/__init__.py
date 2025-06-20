@@ -7,6 +7,7 @@ from .openai import OpenAIClient
 from .openrouter import OpenRouterClient
 from .litellm import LiteLLMClient
 from .claude import ClaudeClient
+from .qianfan import QianfanClient
 
 __all__ = [
     "ModelConfig",
@@ -16,5 +17,6 @@ __all__ = [
     "OpenRouterClient",
     "LiteLLMClient",
     "ClaudeClient",
+    "QianfanClient",
     "Message",
 ]
