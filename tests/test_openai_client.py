@@ -8,7 +8,7 @@ from prompti import Message
 from openai_mock_server import OpenAIMockServer
 
 @pytest.mark.asyncio
-async def test_openai_client_with_mock_server():
+async def test_openai_client():
     with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
         client = OpenAIClient(client=httpx.AsyncClient())
