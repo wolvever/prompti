@@ -1,0 +1,40 @@
+id: multi_modal_analysis
+name: Multi-Modal File Analysis
+version: 1.0
+labels: [analysis, multi-modal, file-processing]
+required_variables: [file_path, analysis_type, user_context]
+messages:
+  - role: system
+    parts:
+      - type: text
+        text: |
+          You are an expert analyst capable of processing various file types including documents, images, audio, and data files. 
+          You provide detailed, accurate analysis based on the content and context provided.
+  - role: user
+    parts:
+      - type: text
+        text: |
+          Please perform {{ analysis_type }} analysis on the attached file.
+          
+          {% if user_context %}
+          **Context:** {{ user_context }}
+          {% endif %}
+          
+          The file is located at: {{ file_path }}
+      - type: file
+        file: "{{ file_path }}"
+  - role: user
+    parts:
+      - type: text
+        text: |
+          Please provide:
+          1. A summary of the file contents
+          2. Key insights and findings
+          3. Recommendations based on your analysis
+          {% if analysis_type == "security" %}
+          4. Any security concerns or vulnerabilities identified
+          {% elif analysis_type == "performance" %}
+          4. Performance metrics and optimization suggestions
+          {% elif analysis_type == "content" %}
+          4. Content quality assessment and improvement suggestions
+          {% endif %} 

@@ -1,5 +1,7 @@
+id: summary
+name: Text Summary
 version: 1.0
-labels: [dev]
+labels: [summarization, text-processing]
 required_variables: [summary]
 messages:
   - role: system
@@ -10,4 +12,4 @@ messages:
   - role: assistant
     parts:
       - type: text
-        text: "{{ summary }}"
+        text: "{{ summary }}" 

@@ -1,0 +1,43 @@
+id: task_manager
+name: Task Management Report
+version: 1.0
+labels: [task-management, reporting, productivity]
+required_variables: [tasks, user_name, priority_threshold]
+messages:
+  - role: system
+    parts:
+      - type: text
+        text: You are a task management assistant helping users organize their work.
+  - role: user
+    parts:
+      - type: text
+        text: |
+          Hi, I'm {{ user_name }}. Here's my current task status:
+
+          {% if tasks %}
+          **Active Tasks:**
+          {% for task in tasks %}
+          {% if task.priority >= priority_threshold %}
+          🔥 **HIGH PRIORITY**: {{ task.name }}
+             - Priority: {{ task.priority }}/10
+             - Due: {{ task.due_date }}
+             {% if task.get('description') %}
+             - Description: {{ task.description }}
+             {% endif %}
+          {% else %}
+          📝 {{ task.name }} (Priority: {{ task.priority }}/10, Due: {{ task.due_date }})
+          {% endif %}
+          {% endfor %}
+
+          {% set high_priority_tasks = tasks | selectattr('priority', '>=', priority_threshold) | list %}
+          {% set total_tasks = tasks | length %}
+          
+          **Summary:**
+          - Total tasks: {{ total_tasks }}
+          - High priority tasks: {{ high_priority_tasks | length }}
+          - Regular tasks: {{ total_tasks - (high_priority_tasks | length) }}
+          {% else %}
+          No tasks currently assigned.
+          {% endif %}
+
+          Please help me prioritize and organize these tasks. 

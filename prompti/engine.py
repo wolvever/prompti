@@ -39,7 +39,7 @@ class FileSystemLoader:
 
     async def __call__(self, name: str, label: str | None) -> Tuple[str, PromptTemplate]:
         """Load and return the template identified by ``name``."""
-        path = self.base / f"{name}.jinja"
+        path = self.base / f"{name}.yaml"
         text = path.read_text()
         data = yaml.safe_load(text)
         version = str(data.get("version", "0"))

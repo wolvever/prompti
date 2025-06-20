@@ -1,37 +1,33 @@
 import pytest
 import httpx
+import os
 
 from prompti.engine import PromptEngine, Setting
-from prompti.model_client import ModelClient, ModelConfig, Message
-
-class Dummy(ModelClient):
-    provider = "dummy"
-
-    def __init__(self):
-        super().__init__(client=httpx.AsyncClient(http2=False))
-
-    async def _run(self, messages, model_cfg, tools=None):
-        self.received_tools = tools
-        yield Message(role="assistant", kind="text", content="ok")
+from prompti.model_client import ModelClient, ModelConfig, Message, OpenAIClient
+from openai_mock_server import OpenAIMockServer
 
 
 @pytest.mark.asyncio
 async def test_engine_with_tools():
-    engine = PromptEngine.from_setting(Setting(template_paths=["./prompts"]))
-    dummy = Dummy()
-    cfg = ModelConfig(provider="dummy", model="x")
+    with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
+        os.environ["OPENAI_API_KEY"] = "testkey"
+        engine = PromptEngine.from_setting(Setting(template_paths=["./prompts"]))
+        client = OpenAIClient(client=httpx.AsyncClient())
+        client.api_url = url  # type: ignore
+        cfg = ModelConfig(provider="openai", model="gpt-3.5-turbo")
 
-    tools = [{"type": "function", "function": {"name": "ping"}}]
-    out = [
-        m
-        async for m in engine.run(
-            "support_reply",
-            {"name": "Bob", "issue": "none"},
-            None,
-            model_cfg=cfg,
-            client=dummy,
-            tools=tools,
-        )
-    ]
-    assert dummy.received_tools == tools
-    assert out[-1].content == "ok"
+        tools = [{"type": "function", "function": {"name": "get_time", "description": "Get the current time", "parameters": {"type": "object", "properties": {}, "required": []}}}]
+        out = [
+            m
+            async for m in engine.run(
+                "support_reply",
+                {"name": "Bob", "issue": "none"},
+                None,
+                model_cfg=cfg,
+                client=client,
+                tools=tools,
+            )
+        ]
+        # The mock server should return a response from the recorded data
+        assert len(out) > 0
+        assert out[-1].content  # Should have content

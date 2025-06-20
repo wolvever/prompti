@@ -2,12 +2,15 @@
 
 import pytest
 import asyncio
+import os
+import httpx
 from unittest.mock import patch, AsyncMock, MagicMock
 from pathlib import Path
 
-from prompti.model_client import RustModelClient
+from prompti.model_client import RustModelClient, OpenAIClient
 from prompti.model_client.base import ModelConfig
 from prompti.message import Message
+from openai_mock_server import OpenAIMockServer
 
 
 async def async_iterator(items):
@@ -39,8 +42,33 @@ def test_find_rust_binary_not_found():
 
 
 @pytest.mark.asyncio
+async def test_rust_client_with_openai_fallback():
+    """Test the Rust client with OpenAI mock server as fallback."""
+    with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
+        os.environ["OPENAI_API_KEY"] = "testkey"
+        
+        # Test the actual OpenAI client that the Rust client might fall back to
+        openai_client = OpenAIClient(client=httpx.AsyncClient())
+        openai_client.api_url = url  # type: ignore
+        
+        messages = [Message(role="user", content="hello", kind="text")]
+        model_cfg = ModelConfig(
+            api_key="test-key",
+            provider="openai",
+            model="gpt-3.5-turbo"
+        )
+        
+        results = []
+        async for msg in openai_client._run(messages, model_cfg):
+            results.append(msg)
+        
+        assert len(results) >= 1
+        assert results[0].content.startswith("Hello")
+
+
+@pytest.mark.asyncio
 async def test_rust_client_run():
-    """Test the Rust client run method."""
+    """Test the Rust client run method with mock subprocess."""
     with patch.object(RustModelClient, '_find_rust_binary', return_value='/fake/path/to/rust-binary'):
         client = RustModelClient()
         
