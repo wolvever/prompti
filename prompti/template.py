@@ -10,7 +10,7 @@ from jinja2 import StrictUndefined
 from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel, PrivateAttr
 
-from .message import Message
+from .message import Message, Kind
 from .model_client import ModelClient, ModelConfig
 
 _env = SandboxedEnvironment(undefined=StrictUndefined)
@@ -53,10 +53,10 @@ class PromptTemplate(BaseModel):
                     rendered = _env.from_string(text).render(**variables)
                     # Preserve trailing spaces but remove leading/trailing newlines
                     rendered = rendered.strip("\n")
-                    results.append(Message(role=role, kind="text", content=rendered))
+                    results.append(Message(role=role, kind=Kind.TEXT, content=rendered))
                 elif ptype == "file":
                     results.append(
-                        Message(role=role, kind="file", content=part.get("file"))
+                        Message(role=role, kind=Kind.FILE, content=part.get("file"))
                     )
         return results
 
