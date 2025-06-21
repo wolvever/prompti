@@ -26,17 +26,13 @@ class TestPromptTemplateFormat:
             name="test",
             version="1.0",
             required_variables=["name"],
-            messages=[
-                {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": "Hello {{ name }}!"
-                        }
-                    ]
-                }
-            ]
+            yaml="""
+messages:
+  - role: user
+    parts:
+      - type: text
+        text: "Hello {{ name }}!"
+""",
         )
 
         messages = template.format({"name": "World"})
@@ -53,35 +49,21 @@ class TestPromptTemplateFormat:
             name="test",
             version="1.0",
             required_variables=["topic", "details"],
-            messages=[
-                {
-                    "role": "system",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": "You are an expert on {{ topic }}."
-                        }
-                    ]
-                },
-                {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": "Please explain {{ details }}."
-                        }
-                    ]
-                },
-                {
-                    "role": "assistant",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": "I'll help you understand {{ topic }} and {{ details }}."
-                        }
-                    ]
-                }
-            ]
+            yaml="""
+messages:
+  - role: system
+    parts:
+      - type: text
+        text: "You are an expert on {{ topic }}."
+  - role: user
+    parts:
+      - type: text
+        text: "Please explain {{ details }}."
+  - role: assistant
+    parts:
+      - type: text
+        text: "I'll help you understand {{ topic }} and {{ details }}."
+""",
         )
 
         messages = template.format({"topic": "AI", "details": "neural networks"})
@@ -100,21 +82,15 @@ class TestPromptTemplateFormat:
             id="test",
             name="test",
             version="1.0",
-            messages=[
-                {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": "Please analyze this file:"
-                        },
-                        {
-                            "type": "file",
-                            "file": "/path/to/document.pdf"
-                        }
-                    ]
-                }
-            ]
+            yaml="""
+messages:
+  - role: user
+    parts:
+      - type: text
+        text: "Please analyze this file:"
+      - type: file
+        file: "/path/to/document.pdf"
+""",
         )
 
         messages = template.format({})
@@ -134,22 +110,13 @@ class TestPromptTemplateFormat:
             name="test",
             version="1.0",
             required_variables=["items"],
-            messages=[
-                {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": (
-                                "Here are the items:\n"
-                                "{% for item in items %}"
-                                "{{ loop.index }}. {{ item }}\n"
-                                "{% endfor %}"
-                            ),
-                        }
-                    ],
-                }
-            ],
+            yaml="""
+messages:
+  - role: user
+    parts:
+      - type: text
+        text: "Here are the items:\n{% for item in items %}{{ loop.index }}. {{ item }}\n{% endfor %}"
+""",
         )
 
         messages = template.format({"items": ["apple", "banana", "cherry"]})
@@ -164,21 +131,18 @@ class TestPromptTemplateFormat:
             name="test",
             version="1.0",
             required_variables=["user_type", "name"],
-            messages=[
-                {
-                    "role": "assistant",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": (
-                                "{% if user_type == 'premium' %}Welcome back, premium member {{ name }}! "
-                                "You have access to all features.{% else %}Hello {{ name }}! "
-                                "Consider upgrading to premium for more features.{% endif %}"
-                            ),
-                        }
-                    ],
-                }
-            ],
+            yaml="""
+messages:
+  - role: assistant
+    parts:
+      - type: text
+        text: |
+          {% if user_type == 'premium' %}
+          Welcome back, premium member {{ name }}! You have access to all features.
+          {% else %}
+          Hello {{ name }}! Consider upgrading to premium for more features.
+          {% endif %}
+""",
         )
 
         # Test premium user
@@ -196,27 +160,24 @@ class TestPromptTemplateFormat:
             name="test",
             version="1.0",
             required_variables=["tasks", "priority_threshold"],
-            messages=[
-                {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": """Task Report:
-{% for task in tasks -%}
-{% if task.priority >= priority_threshold -%}
-🔥 HIGH: {{ task.name }} (Priority: {{ task.priority }})
-{% else -%}
-📝 NORMAL: {{ task.name }} (Priority: {{ task.priority }})
-{% endif -%}
-{% endfor -%}
+            yaml="""
+messages:
+  - role: user
+    parts:
+      - type: text
+        text: |
+          Task Report:
+          {% for task in tasks -%}
+          {% if task.priority >= priority_threshold -%}
+          🔥 HIGH: {{ task.name }} (Priority: {{ task.priority }})
+          {% else -%}
+          📝 NORMAL: {{ task.name }} (Priority: {{ task.priority }})
+          {% endif -%}
+          {% endfor -%}
 
-{% set high_priority_count = tasks | selectattr('priority', '>=', priority_threshold) | list | length -%}
-Total high-priority tasks: {{ high_priority_count }}"""
-                        }
-                    ]
-                }
-            ]
+          {% set high_priority_count = tasks | selectattr('priority', '>=', priority_threshold) | list | length -%}
+          Total high-priority tasks: {{ high_priority_count }}
+""",
         )
 
         tasks_data = {
@@ -245,20 +206,16 @@ Total high-priority tasks: {{ high_priority_count }}"""
             name="test",
             version="1.0",
             required_variables=["name", "age"],
-            messages=[
-                {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": "Hello {{ name }}, you are {{ age }} years old."
-                        }
-                    ]
-                }
-            ]
+            yaml="""
+messages:
+  - role: user
+    parts:
+      - type: text
+        text: "Hello {{ name }}, you are {{ age }} years old."
+""",
         )
 
-        with pytest.raises(KeyError, match="missing variables: \\['age'\\]"):
+        with pytest.raises(KeyError, match=r"missing variables: \['age'\]"):
             template.format({"name": "Alice"})
 
     def test_format_empty_template(self):
@@ -267,7 +224,9 @@ Total high-priority tasks: {{ high_priority_count }}"""
             id="test",
             name="test",
             version="1.0",
-            messages=[]
+            yaml="""
+messages: []
+""",
         )
 
         messages = template.format({})
@@ -279,17 +238,13 @@ Total high-priority tasks: {{ high_priority_count }}"""
             id="test",
             name="test",
             version="1.0",
-            messages=[
-                {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": "Hello world"
-                        }
-                    ]
-                }
-            ]
+            yaml="""
+messages:
+  - role: user
+    parts:
+      - type: text
+        text: "Hello world"
+""",
         )
 
         # Should not raise an error
@@ -304,24 +259,21 @@ Total high-priority tasks: {{ high_priority_count }}"""
             name="test",
             version="1.0",
             required_variables=["project_name", "features"],
-            messages=[
-                {
-                    "role": "system",
-                    "parts": [
-                        {
-                            "type": "text",
-                            "text": """You are a technical writer for {{ project_name }}.
+            yaml="""
+messages:
+  - role: system
+    parts:
+      - type: text
+        text: |
+          You are a technical writer for {{ project_name }}.
 
-Please create documentation that covers:
-{% for feature in features -%}
-- {{ feature }}
-{% endfor %}
+          Please create documentation that covers:
+          {% for feature in features -%}
+          - {{ feature }}
+          {% endfor %}
 
-Make it clear and comprehensive."""
-                        }
-                    ]
-                }
-            ]
+          Make it clear and comprehensive.
+""",
         )
 
         messages = template.format({

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from typing import Any
 
+import yaml
 from jinja2 import StrictUndefined
 from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel
@@ -23,7 +24,7 @@ class PromptTemplate(BaseModel):
     version: str
     labels: list[str] = []
     required_variables: list[str] = []
-    messages: list[dict]
+    yaml: str = ""
 
     def format(
         self,
@@ -34,8 +35,11 @@ class PromptTemplate(BaseModel):
         if missing:
             raise KeyError(f"missing variables: {missing}")
 
+        ydata = yaml.safe_load(self.yaml) if self.yaml else {}
+        messages = ydata.get("messages", [])
+
         results: list[Message] = []
-        for msg in self.messages:
+        for msg in messages:
             role = msg.get("role")
             for part in msg.get("parts", []):
                 ptype = part.get("type")

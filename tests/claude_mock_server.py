@@ -4,10 +4,11 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 
+
 class ClaudeMockServer:
     def __init__(self, log_path: str | Path, host: str = "127.0.0.1", port: int = 0):
         self._log = []
-        with open(log_path, "r", encoding="utf-8") as f:
+        with open(log_path, encoding="utf-8") as f:
             for line in f:
                 self._log.append(json.loads(line))
         self.host = host
