@@ -8,7 +8,7 @@ from .experiment import (
     UnleashRegistry,
     bucket,
 )
-from .message import Message
+from .message import Message, Kind
 from .model_client import (
     ClaudeClient,
     LiteLLMClient,
@@ -37,4 +37,5 @@ __all__ = [
     "UnleashRegistry",
     "GrowthBookRegistry",
     "bucket",
+    "Kind",
 ]
