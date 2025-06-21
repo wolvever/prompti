@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
-import os
-import tempfile
 from collections.abc import AsyncGenerator
-from pathlib import Path
 from typing import Any
 
 import httpx
 from opentelemetry import trace
 
 from ..message import Message
+from ..model_client_rs import model_client as rs_client
 from .base import ModelClient, ModelConfig
 
 
@@ -22,32 +18,11 @@ class RustModelClient(ModelClient):
 
     provider = "rust"
 
-    def __init__(self, rust_binary_path: str | None = None, client: httpx.AsyncClient | None = None) -> None:
-        """Initialize the Rust model client.
-        Args:
-            rust_binary_path: Path to the compiled Rust binary. If None, will try to find it.
-            client: Optional HTTP client (not used by Rust implementation)
-        """
+    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
+        """Initialize the Rust model client using the native wrapper."""
         super().__init__(client)
-        self.rust_binary_path = rust_binary_path or self._find_rust_binary()
         self._tracer = trace.get_tracer(__name__)
-
-    def _find_rust_binary(self) -> str:
-        """Find the compiled Rust binary."""
-        # Look for the binary in the model_client_rs directory
-        rust_dir = Path(__file__).parent.parent / "model_client_rs"
-        binary_path = rust_dir / "target" / "release" / "model-client-rs"
-
-        if not binary_path.exists():
-            # Try debug build
-            binary_path = rust_dir / "target" / "debug" / "model-client-rs"
-
-        if not binary_path.exists():
-            raise FileNotFoundError(
-                f"Rust binary not found. Please build the Rust project first:\ncd {rust_dir} && cargo build --release"
-            )
-
-        return str(binary_path)
+        self._rs_client = rs_client.ModelClient()
 
     async def _run(
         self,
@@ -70,57 +45,12 @@ class RustModelClient(ModelClient):
             "parameters": model_cfg.parameters,
         }
 
-        # Create temporary file for the request
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump(rust_request, f)
-            request_file = f.name
+        # Pass the request directly to the Rust client
+        rust_request["api_key"] = model_cfg.api_key or model_cfg.parameters.get("api_key")
 
-        try:
-            # Execute the Rust binary
-            process = await asyncio.create_subprocess_exec(
-                self.rust_binary_path,
-                "--request-file",
-                request_file,
-                "--stream",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env={
-                    **os.environ,
-                    "OPENAI_API_KEY": model_cfg.api_key or model_cfg.parameters.get("api_key", ""),
-                    "ANTHROPIC_API_KEY": model_cfg.api_key or model_cfg.parameters.get("api_key", ""),
-                },
-            )
-
-            # Read streaming output
-            if process.stdout is not None:
-                async for line in process.stdout:
-                    decoded_line = line.decode().strip()
-                    if not decoded_line:
-                        continue
-
-                    try:
-                        data = json.loads(decoded_line)
-                        if "content" in data:
-                            yield Message(role="assistant", content=data["content"], kind="text")
-                    except json.JSONDecodeError:
-                        # Skip non-JSON lines (logs, etc.)
-                        continue
-
-            # Wait for process to complete
-            await process.wait()
-
-            if process.returncode != 0:
-                stderr_content = ""
-                if process.stderr is not None:
-                    stderr_content = (await process.stderr.read()).decode()
-                raise RuntimeError(f"Rust client failed: {stderr_content}")
-
-        finally:
-            # Clean up temporary file
-            try:
-                os.unlink(request_file)
-            except OSError:
-                pass
+        async for chunk in self._rs_client.chat_stream(rust_request):
+            if "content" in chunk:
+                yield Message(role="assistant", content=chunk["content"], kind="text")
 
     async def close(self) -> None:
         """Close the client."""

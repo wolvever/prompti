@@ -1,5 +1,6 @@
-import pytest
 from pathlib import Path
+
+import pytest
 
 from prompti.loader import FileSystemLoader
 from prompti.template import PromptTemplate
@@ -38,13 +39,14 @@ messages:
     assert messages[0].content == "Hello World!"
 
 
-def test_multi_message_different_kinds():
+def test_multi_message_different_kinds(tmp_path: Path):
+    file_path = tmp_path / "document.pdf"
     template = PromptTemplate(
         id="test",
         name="test",
         version="1.0",
         required_variables=["file_path"],
-        yaml="""
+        yaml=f"""
 messages:
   - role: system
     parts:
@@ -53,14 +55,14 @@ messages:
   - role: user
     parts:
       - type: file
-        file: "/tmp/document.pdf"
+        file: "{file_path}"
 """,
     )
-    messages = template.format({"file_path": "/tmp/document.pdf"})
+    messages = template.format({"file_path": str(file_path)})
     assert len(messages) == 2
     assert messages[0].content == "Analyze file"
     assert messages[1].kind == "file"
-    assert messages[1].content == "/tmp/document.pdf"
+    assert messages[1].content == str(file_path)
 
 
 def test_complex_jinja_multi_message():

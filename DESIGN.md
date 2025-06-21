@@ -80,7 +80,7 @@ class ModelClient:
 * **OpenAIClient** — 调用 OpenAI `chat/completions`，使用 `OPENAI_API_KEY`。支持自定义 `api_url` 与 `api_key` 环境变量名称。
 * **ClaudeClient** — 兼容 Anthropic Claude `messages` API，默认读取 `ANTHROPIC_API_KEY`，额外支持 `thinking` 与 `tool_use` 块以及图片消息。
 * **LiteLLMClient** — 通过 `litellm.acompletion` 统一不同供应商接口，依赖 `LITELLM_API_KEY` / `LITELLM_ENDPOINT`。
-* **RustModelClient** — 将请求序列化为临时文件并调用外部 Rust 二进制，`api_key` 从 `ModelConfig` 传入。
+* **RustModelClient** — 基于 `model_client_rs` 原生库的 Python 包装器，直接调用 Rust 代码，无需额外子进程，`api_key` 从 `ModelConfig` 传入。
 
 ---
 
