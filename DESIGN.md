@@ -21,7 +21,7 @@
 | 字段        | 含义                            | 说明                                |
 | --------- | ----------------------------- | --------------------------------- |
 | `role`    | `assistant\|user\|tool`       | 与 OpenAI / Claude 角色对齐            |
-| `kind`    | `text\|tool_use\|tool_result` | 枚举来自 A2A 规范                       |
+| `kind`    | `text\|file\|data\|tool_use\|tool_result` | 枚举来自 A2A 规范                       |
 | `content` | 字符串或 JSON                     | `tool_use` 时为 `{name, arguments}` |
 
 ---
