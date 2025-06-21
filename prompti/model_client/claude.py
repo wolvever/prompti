@@ -7,6 +7,8 @@ import os
 from collections.abc import AsyncGenerator
 from typing import Any
 
+import httpx
+
 from ..message import Message
 from .base import ModelClient, ModelConfig
 
@@ -17,6 +19,25 @@ class ClaudeClient(ModelClient):
     provider = "claude"
     api_url = "https://api.anthropic.com/v1/messages"
     api_key_var = "ANTHROPIC_API_KEY"
+    api_key: str | None = None
+
+    def __init__(
+        self,
+        client: httpx.AsyncClient | None = None,
+        *,
+        api_url: str | None = None,
+        api_key_var: str | None = None,
+        api_key: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the Claude client allowing API overrides."""
+        super().__init__(client=client, **kwargs)
+        if api_url is not None:
+            self.api_url = api_url
+        if api_key_var is not None:
+            self.api_key_var = api_key_var
+        if api_key is not None:
+            self.api_key = api_key
 
     async def _run(  # noqa: C901
         self,
@@ -27,7 +48,9 @@ class ClaudeClient(ModelClient):
         """Translate A2A messages to Claude blocks and stream the response."""
 
         url = self.api_url
-        api_key = os.environ.get(self.api_key_var, "")
+        api_key = self.api_key or model_cfg.api_key or os.environ.get(
+            self.api_key_var, ""
+        )
         headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
 
         claude_msgs: list[dict[str, Any]] = []

@@ -12,8 +12,7 @@ from prompti.model_client import ClaudeClient, ModelConfig
 async def test_claude_client():
     with ClaudeMockServer("tests/data/claude_record.jsonl") as url:
         os.environ["ANTHROPIC_API_KEY"] = "testkey"
-        client = ClaudeClient(client=httpx.AsyncClient())
-        client.api_url = url  # type: ignore
+        client = ClaudeClient(client=httpx.AsyncClient(), api_url=url)
 
         cfg = ModelConfig(provider="claude", model="claude-3-opus-20240229")
         messages = [Message(role="user", kind="text", content="hi")]
@@ -66,4 +65,17 @@ async def test_claude_client():
         out = [m async for m in client.run(messages, cfg)]
         assert "sunset" in out[0].content.lower()
 
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_claude_client_init_overrides():
+    with ClaudeMockServer("tests/data/claude_record.jsonl") as url:
+        client = ClaudeClient(
+            client=httpx.AsyncClient(), api_url=url, api_key="override"
+        )
+        cfg = ModelConfig(provider="claude", model="claude-3-opus-20240229")
+        messages = [Message(role="user", kind="text", content="hi")]
+        out = [m async for m in client.run(messages, cfg)]
+        assert out[0].content.startswith("Hello")
         await client.close()
