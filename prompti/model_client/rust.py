@@ -42,11 +42,19 @@ class RustModelClient(ModelClient):
             "messages": rust_messages,
             "model": model_cfg.model,
             "provider": model_cfg.provider,
-            "parameters": model_cfg.parameters,
         }
+
+        # Flatten optional parameters onto the request so they map directly to
+        # the Rust ``ChatRequest`` structure.
+        rust_request.update(model_cfg.parameters)
+
+        if tools is not None:
+            rust_request["tools"] = tools
 
         # Pass the request directly to the Rust client
         rust_request["api_key"] = model_cfg.api_key or model_cfg.parameters.get("api_key")
+        if model_cfg.api_base:
+            rust_request["api_base"] = model_cfg.api_base
 
         async for chunk in self._rs_client.chat_stream(rust_request):
             if "content" in chunk:
