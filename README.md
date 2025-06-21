@@ -48,6 +48,16 @@ interface with built-in **Unleash** and **GrowthBook** adapters.
 
 See `DESIGN.md` for a more detailed description of the architecture.
 
+### A2A message parts
+
+Messages consist of an array of parts. The three common part shapes are:
+
+```json
+{ "kind": "text", "text": "tell me a joke" }
+{ "kind": "file", "file": { "name": "README.md", "mimeType": "text/markdown", "bytes": "IyBTYW1wbGUgTWFya2Rvd24gZmlsZQoK…" } }
+{ "kind": "data", "data": { "action": "create-issue", "fields": { "project": "MLInfra", "severity": "high", "title": "GPU node failure" } } }
+```
+
 ## Template examples
 
 ### Single message
