@@ -14,6 +14,8 @@ class ClaudeClient(ModelClient):
     """Client for Anthropic Claude models."""
 
     provider = "claude"
+    api_url = "https://api.anthropic.com/v1/messages"
+    api_key_var = "ANTHROPIC_API_KEY"
 
     async def _run(
         self,
@@ -23,8 +25,8 @@ class ClaudeClient(ModelClient):
     ) -> AsyncGenerator[Message, None]:
         """Translate A2A messages to Claude blocks and stream the response."""
 
-        url = "https://api.anthropic.com/v1/messages"
-        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        url = self.api_url
+        api_key = os.environ.get(self.api_key_var, "")
         headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
 
         claude_msgs: list[dict[str, Any]] = []
@@ -34,6 +36,13 @@ class ClaudeClient(ModelClient):
                 blocks.append({"type": "text", "text": m.content})
             elif m.kind == "thinking":
                 blocks.append({"type": "thinking", "thinking": m.content})
+            elif m.kind in ("image", "image_url"):
+                blocks.append(
+                    {
+                        "type": "image",
+                        "source": {"type": "url", "url": m.content},
+                    }
+                )
             elif m.kind == "tool_use":
                 data = m.content if isinstance(m.content, dict) else json.loads(m.content)
                 blocks.append(

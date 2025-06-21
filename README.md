@@ -30,9 +30,18 @@ provider‑specific protocols.
    `OpenAIClient`, printing messages to the console.
 
 Supported providers include **OpenAI**, **Claude (Anthropic)**, **OpenRouter**,
-and **LiteLLM**.  Each provider has its own `ModelClient` subclass (e.g.
-`OpenAIClient`).  Set the corresponding API key environment variables such as
-`OPENAI_API_KEY` before running examples.
+**LiteLLM**, and a **Rust**-based client for custom integrations.  Each provider
+has its own `ModelClient` subclass (e.g. `OpenAIClient`).  Set the relevant API
+key environment variables such as `OPENAI_API_KEY` before running examples.
+
+### Built-in model clients
+
+| Client            | Environment variables                        | Notes                              |
+| ----------------- | -------------------------------------------- | ---------------------------------- |
+| `OpenAIClient`    | `OPENAI_API_KEY`, optional `OPENAI_API_BASE` | Uses OpenAI chat completions.       |
+| `ClaudeClient`    | `ANTHROPIC_API_KEY`                          | Supports thinking, tool use, image |
+| `LiteLLMClient`   | `LITELLM_API_KEY`, `LITELLM_ENDPOINT`        | Routes through `litellm.acompletion` |
+| `RustModelClient` | n/a (reads from `ModelConfig.api_key`)       | Calls an external Rust binary.     |
 
 Prompti also supports SDK-level A/B experiments via the `ExperimentRegistry`
 interface with built-in **Unleash** and **GrowthBook** adapters.
