@@ -7,6 +7,8 @@ import os
 from collections.abc import AsyncGenerator
 from typing import Any
 
+import httpx
+
 from ..message import Message
 from .base import ModelClient, ModelConfig
 
@@ -16,6 +18,25 @@ class _OpenAICore(ModelClient):
 
     api_url: str
     api_key_var: str
+    api_key: str | None = None
+
+    def __init__(
+        self,
+        client: httpx.AsyncClient | None = None,
+        *,
+        api_url: str | None = None,
+        api_key_var: str | None = None,
+        api_key: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the client allowing overrides for API details."""
+        super().__init__(client=client, **kwargs)
+        if api_url is not None:
+            self.api_url = api_url
+        if api_key_var is not None:
+            self.api_key_var = api_key_var
+        if api_key is not None:
+            self.api_key = api_key
 
     async def _run(  # noqa: C901
         self,
@@ -66,7 +87,7 @@ class _OpenAICore(ModelClient):
         payload.update(model_cfg.parameters)
         if tools is not None:
             payload["tools"] = tools
-        api_key = os.environ.get(self.api_key_var, "")
+        api_key = self.api_key or model_cfg.api_key or os.environ.get(self.api_key_var, "")
         headers = {"Authorization": f"Bearer {api_key}"}
         resp = await self._client.post(self.api_url, json=payload, headers=headers)
         if resp.status_code != 200:

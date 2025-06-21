@@ -12,8 +12,7 @@ from prompti.model_client import Message, ModelConfig, OpenAIClient
 async def test_openai_client():
     with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
-        client = OpenAIClient(client=httpx.AsyncClient())
-        client.api_url = url  # type: ignore
+        client = OpenAIClient(client=httpx.AsyncClient(), api_url=url)
 
         cfg = ModelConfig(provider="openai", model="gpt-3.5-turbo")
         messages = [Message(role="user", kind="text", content="hello")]

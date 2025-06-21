@@ -47,8 +47,7 @@ async def test_rust_client_with_openai_fallback():
         os.environ["OPENAI_API_KEY"] = "testkey"
 
         # Test the actual OpenAI client that the Rust client might fall back to
-        openai_client = OpenAIClient(client=httpx.AsyncClient())
-        openai_client.api_url = url  # type: ignore
+        openai_client = OpenAIClient(client=httpx.AsyncClient(), api_url=url)
 
         messages = [Message(role="user", content="hello", kind="text")]
         model_cfg = ModelConfig(
