@@ -10,7 +10,7 @@ from jinja2 import StrictUndefined
 from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel, PrivateAttr
 
-from .message import Message, Kind
+from .message import Kind, Message
 from .model_client import ModelClient, ModelConfig
 
 _env = SandboxedEnvironment(undefined=StrictUndefined)
