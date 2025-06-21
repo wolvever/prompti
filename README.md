@@ -78,6 +78,7 @@ multi = PromptTemplate(
     id="analyze",
     name="analyze",
     version="1.0",
+    required_variables=["file_path"],
     yaml="""
 messages:
   - role: system
@@ -87,7 +88,7 @@ messages:
   - role: user
     parts:
       - type: file
-        file: "/tmp/document.pdf"
+        file: "{{ file_path }}"
 """,
 )
 
