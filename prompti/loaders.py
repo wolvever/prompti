@@ -29,7 +29,7 @@ class MemoryLoader:
             version=version,
             labels=list(ydata.get("labels", [])),
             required_variables=list(ydata.get("required_variables", [])),
-            messages=ydata.get("messages", []),
+            yaml=text,
         )
         return version, tmpl
 
@@ -58,6 +58,6 @@ class HTTPLoader:
             version=version,
             labels=list(ydata.get("labels", [])),
             required_variables=list(ydata.get("required_variables", [])),
-            messages=ydata.get("messages", []),
+            yaml=text,
         )
         return version, tmpl

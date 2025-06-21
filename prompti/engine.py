@@ -49,7 +49,7 @@ class FileSystemLoader:
             version=version,
             labels=list(data.get("labels", [])),
             required_variables=list(data.get("required_variables", [])),
-            messages=data.get("messages", []),
+            yaml=text,
         )
         return version, tmpl
 

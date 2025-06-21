@@ -1,11 +1,12 @@
-import json
 import os
-import pytest
-import httpx
 
-from prompti.model_client import ModelConfig, ClaudeClient
-from prompti import Message
+import httpx
+import pytest
 from claude_mock_server import ClaudeMockServer
+
+from prompti import Message
+from prompti.model_client import ClaudeClient, ModelConfig
+
 
 @pytest.mark.asyncio
 async def test_claude_client():
