@@ -39,9 +39,7 @@ class LiteLLMClient(ModelClient):
             if m.kind in {"text", "thinking"}:
                 msg["content"] = m.content
             elif m.kind == "image_url":
-                msg["content"] = [
-                    {"type": "image_url", "image_url": {"url": m.content}}
-                ]
+                msg["content"] = [{"type": "image_url", "image_url": {"url": m.content}}]
             elif m.kind == "tool_use":
                 data = m.content if isinstance(m.content, dict) else json.loads(m.content)
                 msg["content"] = None
@@ -55,9 +53,7 @@ class LiteLLMClient(ModelClient):
                     }
                 ]
             elif m.kind == "tool_result":
-                msg["content"] = (
-                    json.dumps(m.content) if not isinstance(m.content, str) else m.content
-                )
+                msg["content"] = json.dumps(m.content) if not isinstance(m.content, str) else m.content
             else:
                 # drop unsupported kinds from request
                 continue
@@ -102,10 +98,12 @@ class LiteLLMClient(ModelClient):
                         yield Message(
                             role="assistant",
                             kind="tool_use",
-                            content=json.dumps({
-                                "name": func.get("name"),
-                                "arguments": json.loads(func.get("arguments", "{}")),
-                            }),
+                            content=json.dumps(
+                                {
+                                    "name": func.get("name"),
+                                    "arguments": json.loads(func.get("arguments", "{}")),
+                                }
+                            ),
                         )
             # Process function call if present
             elif isinstance(message_data, dict) and "function_call" in message_data:
@@ -125,11 +123,6 @@ class LiteLLMClient(ModelClient):
                     yield Message(role="assistant", kind="text", content=content)
             else:
                 # Fallback for unexpected response format
-                yield Message(
-                    role="assistant",
-                    kind="error",
-                    content="Could not extract content from response"
-                )
+                yield Message(role="assistant", kind="error", content="Could not extract content from response")
         except Exception as e:
             yield Message(role="assistant", kind="error", content=f"Error processing response: {str(e)}")
-

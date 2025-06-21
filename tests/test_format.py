@@ -11,5 +11,3 @@ async def test_format_basic():
     engine = PromptEngine.from_setting(settings)
     messages = await engine.format("support_reply", {"name": "Ada", "issue": "login"})
     assert messages[-1].content.startswith("Hi Ada")
-
-

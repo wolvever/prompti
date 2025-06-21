@@ -29,6 +29,7 @@ class ExperimentRegistry(Protocol):
 # Hashing utilities
 # ---------------------------------------------------------------------------
 
+
 def bucket(hash_key: str, split: dict[str, float]) -> str:
     """Return variant bucket using xxhash based distribution."""
     h = xxhash.xxh32(hash_key).intdigest() / 2**32
@@ -43,6 +44,7 @@ def bucket(hash_key: str, split: dict[str, float]) -> str:
 # ---------------------------------------------------------------------------
 # Unleash adapter
 # ---------------------------------------------------------------------------
+
 
 class UnleashRegistry:
     """Experiment registry that queries an Unleash server."""
@@ -74,6 +76,7 @@ class UnleashRegistry:
 # ---------------------------------------------------------------------------
 # GrowthBook adapter
 # ---------------------------------------------------------------------------
+
 
 class GrowthBookRegistry:
     """Simple GrowthBook adapter using an in-memory feature map."""

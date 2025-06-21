@@ -55,9 +55,7 @@ class PromptTemplate(BaseModel):
                     rendered = rendered.strip("\n")
                     results.append(Message(role=role, kind="text", content=rendered))
                 elif ptype == "file":
-                    results.append(
-                        Message(role=role, kind="file", content=part.get("file"))
-                    )
+                    results.append(Message(role=role, kind="file", content=part.get("file")))
         return results
 
     async def run(

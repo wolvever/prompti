@@ -185,9 +185,9 @@ messages:
                 {"name": "Fix bug", "priority": 9},
                 {"name": "Update docs", "priority": 3},
                 {"name": "Security patch", "priority": 10},
-                {"name": "Refactor code", "priority": 5}
+                {"name": "Refactor code", "priority": 5},
             ],
-            "priority_threshold": 8
+            "priority_threshold": 8,
         }
 
         messages = template.format(tasks_data)
@@ -276,10 +276,9 @@ messages:
 """,
         )
 
-        messages = template.format({
-            "project_name": "MyApp",
-            "features": ["authentication", "data processing", "API endpoints"]
-        })
+        messages = template.format(
+            {"project_name": "MyApp", "features": ["authentication", "data processing", "API endpoints"]}
+        )
 
         expected_content = """You are a technical writer for MyApp.
 

@@ -8,7 +8,7 @@ from .experiment import (
     UnleashRegistry,
     bucket,
 )
-from .message import Message, Kind
+from .message import Kind, Message
 from .model_client import (
     ClaudeClient,
     LiteLLMClient,

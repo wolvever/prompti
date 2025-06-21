@@ -71,9 +71,7 @@ async def test_claude_client():
 @pytest.mark.asyncio
 async def test_claude_client_init_overrides():
     with ClaudeMockServer("tests/data/claude_record.jsonl") as url:
-        client = ClaudeClient(
-            client=httpx.AsyncClient(), api_url=url, api_key="override"
-        )
+        client = ClaudeClient(client=httpx.AsyncClient(), api_url=url, api_key="override")
         cfg = ModelConfig(provider="claude", model="claude-3-opus-20240229")
         messages = [Message(role="user", kind="text", content="hi")]
         out = [m async for m in client.run(messages, cfg)]

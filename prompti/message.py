@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel
 

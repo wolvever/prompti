@@ -6,15 +6,14 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-import yaml
 from async_lru import alru_cache
 from opentelemetry import trace
 from prometheus_client import Counter
 from pydantic import BaseModel
 
 from .experiment import ExperimentRegistry, bucket
-from .loaders import HTTPLoader, MemoryLoader
 from .loader import FileSystemLoader
+from .loaders import HTTPLoader, MemoryLoader
 from .message import Message
 from .model_client import ModelClient, ModelConfig
 from .template import PromptTemplate
@@ -26,12 +25,7 @@ ab_counter = Counter(
     labelnames=["experiment", "variant"],
 )
 
-TemplateLoader = Callable[
-    [str, str | None], Awaitable[tuple[str, PromptTemplate]]
-]
-
-
-
+TemplateLoader = Callable[[str, str | None], Awaitable[tuple[str, PromptTemplate]]]
 
 
 class PromptEngine:
@@ -50,9 +44,7 @@ class PromptEngine:
                 return tmpl
         raise FileNotFoundError(name)
 
-    async def format(
-        self, template_name: str, variables: dict[str, Any], tags: str | None = None
-    ) -> list[Message]:
+    async def format(self, template_name: str, variables: dict[str, Any], tags: str | None = None) -> list[Message]:
         """Return formatted messages for ``template_name``."""
         tmpl = await self._resolve(template_name, tags)
         return tmpl.format(variables, tags)
@@ -122,8 +114,8 @@ class PromptEngine:
 
 class Setting(BaseModel):
     """Configuration options for :class:`PromptEngine`."""
+
     template_paths: list[Path] = [Path("./prompts")]
     cache_ttl: int = 300
     registry_url: str | None = None
     memory_templates: dict[str, dict[str, str]] | None = None
-

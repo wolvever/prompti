@@ -48,9 +48,7 @@ class ClaudeClient(ModelClient):
         """Translate A2A messages to Claude blocks and stream the response."""
 
         url = self.api_url
-        api_key = self.api_key or model_cfg.api_key or os.environ.get(
-            self.api_key_var, ""
-        )
+        api_key = self.api_key or model_cfg.api_key or os.environ.get(self.api_key_var, "")
         headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
 
         claude_msgs: list[dict[str, Any]] = []

@@ -21,5 +21,6 @@ async def main():
     ):
         print(f"{msg.role}/{msg.kind}: {msg.content}")
 
+
 if __name__ == "__main__":
     asyncio.run(main())

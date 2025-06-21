@@ -33,9 +33,7 @@ class ModelClient:
     provider: str = "generic"
 
     _counter = Counter("llm_tokens_total", "Tokens in/out", labelnames=["direction"])
-    _histogram = Histogram(
-        "llm_request_latency_seconds", "LLM latency", labelnames=["provider"]
-    )
+    _histogram = Histogram("llm_request_latency_seconds", "LLM latency", labelnames=["provider"])
 
     def __init__(self, client: httpx.AsyncClient | None = None, **_: Any) -> None:
         """Create the client with an optional :class:`httpx.AsyncClient`.

@@ -44,8 +44,7 @@ class RustModelClient(ModelClient):
 
         if not binary_path.exists():
             raise FileNotFoundError(
-                f"Rust binary not found. Please build the Rust project first:\n"
-                f"cd {rust_dir} && cargo build --release"
+                f"Rust binary not found. Please build the Rust project first:\ncd {rust_dir} && cargo build --release"
             )
 
         return str(binary_path)
@@ -61,22 +60,18 @@ class RustModelClient(ModelClient):
         # Convert messages to the format expected by Rust
         rust_messages = []
         for msg in messages:
-            rust_messages.append({
-                "role": msg.role,
-                "content": msg.content,
-                "kind": msg.kind
-            })
+            rust_messages.append({"role": msg.role, "content": msg.content, "kind": msg.kind})
 
         # Prepare the request for Rust
         rust_request = {
             "messages": rust_messages,
             "model": model_cfg.model,
             "provider": model_cfg.provider,
-            "parameters": model_cfg.parameters
+            "parameters": model_cfg.parameters,
         }
 
         # Create temporary file for the request
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(rust_request, f)
             request_file = f.name
 
@@ -84,7 +79,8 @@ class RustModelClient(ModelClient):
             # Execute the Rust binary
             process = await asyncio.create_subprocess_exec(
                 self.rust_binary_path,
-                "--request-file", request_file,
+                "--request-file",
+                request_file,
                 "--stream",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -92,7 +88,7 @@ class RustModelClient(ModelClient):
                     **os.environ,
                     "OPENAI_API_KEY": model_cfg.api_key or model_cfg.parameters.get("api_key", ""),
                     "ANTHROPIC_API_KEY": model_cfg.api_key or model_cfg.parameters.get("api_key", ""),
-                }
+                },
             )
 
             # Read streaming output
@@ -105,11 +101,7 @@ class RustModelClient(ModelClient):
                     try:
                         data = json.loads(decoded_line)
                         if "content" in data:
-                            yield Message(
-                                role="assistant",
-                                content=data["content"],
-                                kind="text"
-                            )
+                            yield Message(role="assistant", content=data["content"], kind="text")
                     except json.JSONDecodeError:
                         # Skip non-JSON lines (logs, etc.)
                         continue

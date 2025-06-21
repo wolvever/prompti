@@ -20,9 +20,7 @@ class ReplayError(Exception):
     """Raised when replay encounters an error event."""
 
 
-_replay_counter = Counter(
-    "trace_replay_total", "replay summary", labelnames=["status"]
-)
+_replay_counter = Counter("trace_replay_total", "replay summary", labelnames=["status"])
 _diff_tokens = Counter("trace_diff_tokens_total", "token diff")
 
 
@@ -41,9 +39,7 @@ class ModelClientRecorder(ModelClient):
         self.output_dir = Path(output_dir or Path.home() / ".prompt/sessions")
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    async def _write_row(
-        self, file, step: int, direction: str, payload: dict | list, meta: dict
-    ) -> None:
+    async def _write_row(self, file, step: int, direction: str, payload: dict | list, meta: dict) -> None:
         row = {
             "session_id": self.session_id,
             "trace_id": self._trace_id,
@@ -64,10 +60,7 @@ class ModelClientRecorder(ModelClient):
         self._trace_id = str(uuid4())
         step = 0
         meta = {"provider": model_cfg.provider, "model": model_cfg.model}
-        log_file = (
-            self.output_dir
-            / f"rollout-{datetime.now(timezone.utc).date().isoformat()}-{self.session_id}.jsonl"
-        )
+        log_file = self.output_dir / f"rollout-{datetime.now(timezone.utc).date().isoformat()}-{self.session_id}.jsonl"
         async with aiofiles.open(log_file, "a") as f:
             await self._write_row(
                 f,
@@ -84,9 +77,7 @@ class ModelClientRecorder(ModelClient):
                     step += 1
                     yield msg
             except Exception as exc:
-                await self._write_row(
-                    f, step, "error", {"error": str(exc)}, meta
-                )
+                await self._write_row(f, step, "error", {"error": str(exc)}, meta)
                 raise
 
     async def close(self) -> None:
@@ -139,4 +130,3 @@ class ReplayEngine:
                     raise ReplayError(row.get("payload"))
         finally:
             _replay_counter.labels(status).inc()
-
