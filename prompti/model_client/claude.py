@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from ..message import Message
 from .base import ModelClient, ModelConfig
@@ -15,7 +16,7 @@ class ClaudeClient(ModelClient):
 
     provider = "claude"
 
-    async def _run(
+    async def _run(  # noqa: C901
         self,
         messages: list[Message],
         model_cfg: ModelConfig,
@@ -67,7 +68,6 @@ class ClaudeClient(ModelClient):
                     role="assistant",
                     kind="thinking",
                     content=blk.get("thinking") or blk.get("text", ""),
-                    meta={"visible": False, "signature": blk.get("signature")},
                 )
             elif blk.get("type") == "tool_use":
                 yield Message(

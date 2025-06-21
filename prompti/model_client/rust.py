@@ -2,24 +2,19 @@
 
 from __future__ import annotations
 
-from __future__ import annotations
-
-"""Rust-based model client implementation."""
-
 import asyncio
 import json
 import os
-import subprocess
 import tempfile
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any
 
 import httpx
 from opentelemetry import trace
-from prometheus_client import Counter, Histogram
 
-from .base import ModelClient, ModelConfig
 from ..message import Message
+from .base import ModelClient, ModelConfig
 
 
 class RustModelClient(ModelClient):
@@ -29,7 +24,6 @@ class RustModelClient(ModelClient):
 
     def __init__(self, rust_binary_path: str | None = None, client: httpx.AsyncClient | None = None) -> None:
         """Initialize the Rust model client.
-        
         Args:
             rust_binary_path: Path to the compiled Rust binary. If None, will try to find it.
             client: Optional HTTP client (not used by Rust implementation)
@@ -43,17 +37,17 @@ class RustModelClient(ModelClient):
         # Look for the binary in the model_client_rs directory
         rust_dir = Path(__file__).parent.parent / "model_client_rs"
         binary_path = rust_dir / "target" / "release" / "model-client-rs"
-        
+
         if not binary_path.exists():
             # Try debug build
             binary_path = rust_dir / "target" / "debug" / "model-client-rs"
-            
+
         if not binary_path.exists():
             raise FileNotFoundError(
                 f"Rust binary not found. Please build the Rust project first:\n"
                 f"cd {rust_dir} && cargo build --release"
             )
-            
+
         return str(binary_path)
 
     async def _run(
@@ -63,7 +57,7 @@ class RustModelClient(ModelClient):
         tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         """Execute the LLM call using the Rust implementation."""
-        
+
         # Convert messages to the format expected by Rust
         rust_messages = []
         for msg in messages:
@@ -72,7 +66,7 @@ class RustModelClient(ModelClient):
                 "content": msg.content,
                 "kind": msg.kind
             })
-        
+
         # Prepare the request for Rust
         rust_request = {
             "messages": rust_messages,
@@ -80,12 +74,12 @@ class RustModelClient(ModelClient):
             "provider": model_cfg.provider,
             "parameters": model_cfg.parameters
         }
-        
+
         # Create temporary file for the request
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
             json.dump(rust_request, f)
             request_file = f.name
-        
+
         try:
             # Execute the Rust binary
             process = await asyncio.create_subprocess_exec(
@@ -100,14 +94,14 @@ class RustModelClient(ModelClient):
                     "ANTHROPIC_API_KEY": model_cfg.api_key or model_cfg.parameters.get("api_key", ""),
                 }
             )
-            
+
             # Read streaming output
             if process.stdout is not None:
                 async for line in process.stdout:
                     decoded_line = line.decode().strip()
                     if not decoded_line:
                         continue
-                        
+
                     try:
                         data = json.loads(decoded_line)
                         if "content" in data:
@@ -119,16 +113,16 @@ class RustModelClient(ModelClient):
                     except json.JSONDecodeError:
                         # Skip non-JSON lines (logs, etc.)
                         continue
-            
+
             # Wait for process to complete
             await process.wait()
-            
+
             if process.returncode != 0:
                 stderr_content = ""
                 if process.stderr is not None:
                     stderr_content = (await process.stderr.read()).decode()
                 raise RuntimeError(f"Rust client failed: {stderr_content}")
-                
+
         finally:
             # Clean up temporary file
             try:
@@ -138,4 +132,4 @@ class RustModelClient(ModelClient):
 
     async def close(self) -> None:
         """Close the client."""
-        await super().close() 
+        await super().close()

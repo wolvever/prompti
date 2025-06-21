@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, AsyncGenerator
-from pydantic import BaseModel
-from jinja2.sandbox import SandboxedEnvironment
+from collections.abc import AsyncGenerator
+from typing import Any
+
 from jinja2 import StrictUndefined
+from jinja2.sandbox import SandboxedEnvironment
+from pydantic import BaseModel
 
 from .message import Message
-from .model_client import ModelConfig, ModelClient
+from .model_client import ModelClient, ModelConfig
 
 _env = SandboxedEnvironment(undefined=StrictUndefined)
 

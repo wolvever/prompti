@@ -1,14 +1,16 @@
 """Tests for YAML-based template loading."""
 
+from pathlib import Path
+
 import pytest
+
 from prompti.engine import PromptEngine, Setting
 from prompti.template import PromptTemplate
-from prompti.message import Message
 
 
 @pytest.mark.asyncio
 async def test_format_yaml():
-    settings = Setting(template_paths=["./prompts"])
+    settings = Setting(template_paths=[Path("./prompts")])
     engine = PromptEngine.from_setting(settings)
     messages = await engine.format("summary", {"summary": "Hello"})
     assert messages[-1].content == "Hello"
@@ -36,9 +38,9 @@ class TestPromptTemplateFormat:
                 }
             ]
         )
-        
+
         messages = template.format({"name": "World"})
-        
+
         assert len(messages) == 1
         assert messages[0].role == "user"
         assert messages[0].kind == "text"
@@ -81,9 +83,9 @@ class TestPromptTemplateFormat:
                 }
             ]
         )
-        
+
         messages = template.format({"topic": "AI", "details": "neural networks"})
-        
+
         assert len(messages) == 3
         assert messages[0].role == "system"
         assert messages[0].content == "You are an expert on AI."
@@ -114,9 +116,9 @@ class TestPromptTemplateFormat:
                 }
             ]
         )
-        
+
         messages = template.format({})
-        
+
         assert len(messages) == 2
         assert messages[0].role == "user"
         assert messages[0].kind == "text"
@@ -138,15 +140,20 @@ class TestPromptTemplateFormat:
                     "parts": [
                         {
                             "type": "text",
-                            "text": "Here are the items:\n{% for item in items %}{{ loop.index }}. {{ item }}\n{% endfor %}"
+                            "text": (
+                                "Here are the items:\n"
+                                "{% for item in items %}"
+                                "{{ loop.index }}. {{ item }}\n"
+                                "{% endfor %}"
+                            ),
                         }
-                    ]
+                    ],
                 }
-            ]
+            ],
         )
-        
+
         messages = template.format({"items": ["apple", "banana", "cherry"]})
-        
+
         assert len(messages) == 1
         assert messages[0].content == "Here are the items:\n1. apple\n2. banana\n3. cherry\n"
 
@@ -163,17 +170,21 @@ class TestPromptTemplateFormat:
                     "parts": [
                         {
                             "type": "text",
-                            "text": "{% if user_type == 'premium' %}Welcome back, premium member {{ name }}! You have access to all features.{% else %}Hello {{ name }}! Consider upgrading to premium for more features.{% endif %}"
+                            "text": (
+                                "{% if user_type == 'premium' %}Welcome back, premium member {{ name }}! "
+                                "You have access to all features.{% else %}Hello {{ name }}! "
+                                "Consider upgrading to premium for more features.{% endif %}"
+                            ),
                         }
-                    ]
+                    ],
                 }
-            ]
+            ],
         )
-        
+
         # Test premium user
         messages = template.format({"user_type": "premium", "name": "Alice"})
         assert messages[0].content == "Welcome back, premium member Alice! You have access to all features."
-        
+
         # Test regular user
         messages = template.format({"user_type": "regular", "name": "Bob"})
         assert messages[0].content == "Hello Bob! Consider upgrading to premium for more features."
@@ -207,7 +218,7 @@ Total high-priority tasks: {{ high_priority_count }}"""
                 }
             ]
         )
-        
+
         tasks_data = {
             "tasks": [
                 {"name": "Fix bug", "priority": 9},
@@ -217,10 +228,10 @@ Total high-priority tasks: {{ high_priority_count }}"""
             ],
             "priority_threshold": 8
         }
-        
+
         messages = template.format(tasks_data)
         content = messages[0].content
-        
+
         assert "🔥 HIGH: Fix bug (Priority: 9)" in content
         assert "📝 NORMAL: Update docs (Priority: 3)" in content
         assert "🔥 HIGH: Security patch (Priority: 10)" in content
@@ -246,7 +257,7 @@ Total high-priority tasks: {{ high_priority_count }}"""
                 }
             ]
         )
-        
+
         with pytest.raises(KeyError, match="missing variables: \\['age'\\]"):
             template.format({"name": "Alice"})
 
@@ -258,7 +269,7 @@ Total high-priority tasks: {{ high_priority_count }}"""
             version="1.0",
             messages=[]
         )
-        
+
         messages = template.format({})
         assert len(messages) == 0
 
@@ -280,7 +291,7 @@ Total high-priority tasks: {{ high_priority_count }}"""
                 }
             ]
         )
-        
+
         # Should not raise an error
         messages = template.format({}, tag="test-tag")
         assert len(messages) == 1
@@ -312,12 +323,12 @@ Make it clear and comprehensive."""
                 }
             ]
         )
-        
+
         messages = template.format({
             "project_name": "MyApp",
             "features": ["authentication", "data processing", "API endpoints"]
         })
-        
+
         expected_content = """You are a technical writer for MyApp.
 
 Please create documentation that covers:
@@ -327,5 +338,5 @@ Please create documentation that covers:
 
 
 Make it clear and comprehensive."""
-        
+
         assert messages[0].content == expected_content

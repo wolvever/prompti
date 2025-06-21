@@ -2,11 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
-from pathlib import Path
-from typing import Awaitable, Tuple
-
 import httpx
 import yaml
 
@@ -20,7 +15,7 @@ class MemoryLoader:
         """Store the mapping of template name to template data."""
         self.mapping = mapping
 
-    async def __call__(self, name: str, label: str | None) -> Tuple[str, PromptTemplate]:
+    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
         """Return the template ``name`` from the mapping."""
         data = self.mapping.get(name)
         if not data:
@@ -47,7 +42,7 @@ class HTTPLoader:
         self.base_url = base_url.rstrip("/")
         self.client = client or httpx.AsyncClient()
 
-    async def __call__(self, name: str, label: str | None) -> Tuple[str, PromptTemplate]:
+    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
         """Retrieve ``name`` from the remote registry."""
         params = {"label": label} if label else {}
         resp = await self.client.get(f"{self.base_url}/templates/{name}", params=params)

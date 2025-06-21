@@ -1,13 +1,15 @@
 """Base classes for model clients."""
 
 from __future__ import annotations
-from typing import Any, AsyncGenerator
+
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 from opentelemetry import trace
 from prometheus_client import Counter, Histogram
 from pydantic import BaseModel
-from tenacity import retry, wait_exponential_jitter, stop_after_attempt
+from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
 from ..message import Message
 

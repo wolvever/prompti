@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from ..message import Message
 from .base import ModelClient, ModelConfig
@@ -16,7 +17,7 @@ class _OpenAICore(ModelClient):
     api_url: str
     api_key_var: str
 
-    async def _run(
+    async def _run(  # noqa: C901
         self,
         messages: list[Message],
         model_cfg: ModelConfig,

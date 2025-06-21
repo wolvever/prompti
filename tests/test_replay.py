@@ -1,9 +1,7 @@
 """Tests for logging and replaying model client responses."""
 
 import json
-import asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
-import httpx
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -17,13 +15,13 @@ async def test_record_and_replay(tmp_path):
     mock_client = AsyncMock(spec=OpenAIClient)
     mock_client.provider = "openai"
     mock_client._client = MagicMock()  # Add the _client attribute that ModelClientRecorder expects
-    
+
     async def mock_run(messages, cfg, tools=None):
         yield Message(role="assistant", kind="text", content="pong")
-    
+
     mock_client.run = mock_run
     mock_client._run = mock_run
-    
+
     recorder = ModelClientRecorder(mock_client, "sess", output_dir=tmp_path)
     cfg = ModelConfig(provider="openai", model="gpt-4o")
     msgs = [Message(role="user", kind="text", content="ping")]
@@ -31,7 +29,7 @@ async def test_record_and_replay(tmp_path):
     assert result[0].content == "pong"
 
     log_file = next(tmp_path.iterdir())
-    rows = [json.loads(l) for l in log_file.read_text().splitlines()]
+    rows = [json.loads(line) for line in log_file.read_text().splitlines()]
     assert rows[0]["direction"] == "req"
     assert rows[1]["direction"] == "res"
 
@@ -39,10 +37,10 @@ async def test_record_and_replay(tmp_path):
         mock_factory_client = AsyncMock(spec=OpenAIClient)
         mock_factory_client.provider = provider
         mock_factory_client._client = MagicMock()
-        
+
         async def mock_factory_run(messages, cfg, tools=None):
             yield Message(role="assistant", kind="text", content="pong")
-        
+
         mock_factory_client.run = mock_factory_run
         mock_factory_client._run = mock_factory_run
         return mock_factory_client

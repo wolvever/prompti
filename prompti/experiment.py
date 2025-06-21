@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Protocol, Dict
-from pydantic import BaseModel
+from typing import Protocol
+
 import httpx
 import xxhash
+from pydantic import BaseModel
 
 
 class ExperimentSplit(BaseModel):
@@ -13,7 +14,7 @@ class ExperimentSplit(BaseModel):
 
     experiment_id: str | None = None
     variant: str | None = None
-    traffic_split: Dict[str, float] | None = None
+    traffic_split: dict[str, float] | None = None
 
 
 class ExperimentRegistry(Protocol):
@@ -28,7 +29,7 @@ class ExperimentRegistry(Protocol):
 # Hashing utilities
 # ---------------------------------------------------------------------------
 
-def bucket(hash_key: str, split: Dict[str, float]) -> str:
+def bucket(hash_key: str, split: dict[str, float]) -> str:
     """Return variant bucket using xxhash based distribution."""
     h = xxhash.xxh32(hash_key).intdigest() / 2**32
     total = 0.0
@@ -77,7 +78,7 @@ class UnleashRegistry:
 class GrowthBookRegistry:
     """Simple GrowthBook adapter using an in-memory feature map."""
 
-    def __init__(self, features: Dict[str, Dict[str, float | str]]) -> None:
+    def __init__(self, features: dict[str, dict[str, float | str]]) -> None:
         """Initialize with ``features`` describing experiments and weights."""
         self._features = features
 
