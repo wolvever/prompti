@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 
-class ClaudeMockServer:
+class MockServer:
     def __init__(self, log_path: str | Path, host: str = "127.0.0.1", port: int = 0):
         self._log = []
         with open(log_path, encoding="utf-8") as f:

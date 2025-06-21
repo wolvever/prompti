@@ -3,7 +3,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from openai_mock_server import OpenAIMockServer
+from mock_server import MockServer
 
 from prompti.engine import PromptEngine, Setting
 from prompti.model_client import ModelConfig, OpenAIClient
@@ -11,7 +11,7 @@ from prompti.model_client import ModelConfig, OpenAIClient
 
 @pytest.mark.asyncio
 async def test_engine_with_tools():
-    with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
+    with MockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
         engine = PromptEngine.from_setting(Setting(template_paths=[Path("./prompts")]))
         client = OpenAIClient(client=httpx.AsyncClient(), api_url=url)

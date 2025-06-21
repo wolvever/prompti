@@ -2,7 +2,7 @@ import os
 
 import httpx
 import pytest
-from claude_mock_server import ClaudeMockServer
+from mock_server import MockServer
 
 from prompti import Message
 from prompti.model_client import ClaudeClient, ModelConfig
@@ -10,7 +10,7 @@ from prompti.model_client import ClaudeClient, ModelConfig
 
 @pytest.mark.asyncio
 async def test_claude_client():
-    with ClaudeMockServer("tests/data/claude_record.jsonl") as url:
+    with MockServer("tests/data/claude_record.jsonl") as url:
         os.environ["ANTHROPIC_API_KEY"] = "testkey"
         client = ClaudeClient(client=httpx.AsyncClient(), api_url=url)
 
@@ -70,7 +70,7 @@ async def test_claude_client():
 
 @pytest.mark.asyncio
 async def test_claude_client_init_overrides():
-    with ClaudeMockServer("tests/data/claude_record.jsonl") as url:
+    with MockServer("tests/data/claude_record.jsonl") as url:
         client = ClaudeClient(client=httpx.AsyncClient(), api_url=url, api_key="override")
         cfg = ModelConfig(provider="claude", model="claude-3-opus-20240229")
         messages = [Message(role="user", kind="text", content="hi")]

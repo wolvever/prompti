@@ -3,14 +3,14 @@ import os
 
 import httpx
 import pytest
-from openai_mock_server import OpenAIMockServer
+from mock_server import MockServer
 
 from prompti.model_client import Message, ModelConfig, OpenAIClient
 
 
 @pytest.mark.asyncio
 async def test_openai_client():
-    with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
+    with MockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
         client = OpenAIClient(client=httpx.AsyncClient(), api_url=url)
 

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
-from openai_mock_server import OpenAIMockServer
+from mock_server import MockServer
 
 from prompti.message import Message
 from prompti.model_client import OpenAIClient, RustModelClient
@@ -43,7 +43,7 @@ def test_find_rust_binary_not_found():
 @pytest.mark.asyncio
 async def test_rust_client_with_openai_fallback():
     """Test the Rust client with OpenAI mock server as fallback."""
-    with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
+    with MockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
 
         # Test the actual OpenAI client that the Rust client might fall back to
