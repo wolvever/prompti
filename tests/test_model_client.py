@@ -4,7 +4,7 @@ import os
 
 import httpx
 import pytest
-from openai_mock_server import OpenAIMockServer
+from mock_server import MockServer
 
 from prompti.model_client import (
     Message,
@@ -29,7 +29,7 @@ GET_TIME_TOOL = {
     ["openai", "openrouter"],
 )
 async def test_openai_like_providers(provider):
-    with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
+    with MockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
         # Set OpenRouter API key to avoid empty bearer token
         if provider == "openrouter":
@@ -48,7 +48,7 @@ async def test_openai_like_providers(provider):
 
 @pytest.mark.asyncio
 async def test_model_client_tools():
-    with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
+    with MockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
         mc = OpenAIClient(client=httpx.AsyncClient(), api_url=url)
         cfg = ModelConfig(provider="openai", model="gpt-3.5-turbo")
@@ -63,7 +63,7 @@ async def test_model_client_tools():
 
 @pytest.mark.asyncio
 async def test_model_client_tool_request_format():
-    with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
+    with MockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
         mc = OpenAIClient(client=httpx.AsyncClient(), api_url=url)
         cfg = ModelConfig(provider="openai", model="gpt-3.5-turbo")
