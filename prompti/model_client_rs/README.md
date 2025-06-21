@@ -4,14 +4,19 @@ This directory contains a Rust implementation of the model client that provides 
 
 ## Building
 
-To build the Rust binary:
+This crate exposes both a Python extension and an optional CLI binary.
+To build and install the Python bindings locally:
 
 ```bash
 cd prompti/prompti/model_client_rs
-cargo build --release
+maturin develop --release
 ```
 
-The binary will be created at `target/release/model-client-rs`.
+The standalone binary can still be built with:
+
+```bash
+cargo build --release
+```
 
 ## Usage
 
@@ -134,11 +139,10 @@ The Rust client consists of several modules:
 
 ## Integration
 
-The Rust client integrates seamlessly with the Python prompti framework:
+The Rust client integrates seamlessly with the Python ``prompti`` framework:
 
-1. The Python wrapper (`RustModelClient`) implements the `ModelClient` interface
-2. It communicates with the Rust binary via subprocess
-3. JSON is used for request/response serialization
-4. Streaming responses are handled asynchronously
+1. The Python wrapper (`RustModelClient`) exposes the `model_client_rs` library through PyO3 bindings.
+2. Requests and responses are exchanged using JSON structures.
+3. Streaming responses are yielded asynchronously without spawning a subprocess.
 
-This design provides the performance benefits of Rust while maintaining the ease of use of Python. 
+This design retains Rust performance while providing a smooth Python API.
