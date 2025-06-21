@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Representation and execution of Jinja2-based prompt templates."""
+
+from __future__ import annotations
 
 from typing import Any, AsyncGenerator
 from pydantic import BaseModel

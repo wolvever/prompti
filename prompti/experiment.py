@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """SDK level A/B experiment helpers."""
+
+from __future__ import annotations
 
 from typing import Protocol, Dict
 from pydantic import BaseModel

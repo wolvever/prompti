@@ -1,3 +1,7 @@
+"""Rust-based model client implementation."""
+
+from __future__ import annotations
+
 from __future__ import annotations
 
 """Rust-based model client implementation."""
@@ -53,7 +57,10 @@ class RustModelClient(ModelClient):
         return str(binary_path)
 
     async def _run(
-        self, messages: list[Message], model_cfg: ModelConfig
+        self,
+        messages: list[Message],
+        model_cfg: ModelConfig,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         """Execute the LLM call using the Rust implementation."""
         
@@ -97,12 +104,12 @@ class RustModelClient(ModelClient):
             # Read streaming output
             if process.stdout is not None:
                 async for line in process.stdout:
-                    line = line.decode().strip()
-                    if not line:
+                    decoded_line = line.decode().strip()
+                    if not decoded_line:
                         continue
                         
                     try:
-                        data = json.loads(line)
+                        data = json.loads(decoded_line)
                         if "content" in data:
                             yield Message(
                                 role="assistant",

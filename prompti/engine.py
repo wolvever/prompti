@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Core engine that resolves templates and executes them with model clients."""
+
+from __future__ import annotations
 
 import asyncio
 from pathlib import Path

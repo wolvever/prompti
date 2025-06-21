@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Shared logic for OpenAI-like providers."""
+
+from __future__ import annotations
 
 import json
 import os
