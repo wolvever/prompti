@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, AsyncGenerator
 import json
 import os
+from collections.abc import AsyncGenerator
+from typing import Any
+
 import litellm
 
 from ..message import Message
@@ -18,7 +20,7 @@ class LiteLLMClient(ModelClient):
     api_key_var = "LITELLM_API_KEY"
     endpoint_var = "LITELLM_ENDPOINT"
 
-    async def _run(
+    async def _run(  # noqa: C901
         self,
         messages: list[Message],
         model_cfg: ModelConfig,
@@ -78,19 +80,20 @@ class LiteLLMClient(ModelClient):
         try:
             # Try to access as dictionary first
             if isinstance(response, dict):
-                choice = response.get("choices", [{}])[0]
-                message_data = choice.get("message", {})
+                choices = response.get("choices", [])
+                choice = choices[0] if choices else None
+                message_data = choice.get("message", {}) if choice else {}
             else:
                 # Try to access as object
-                choice = response.choices[0] if hasattr(response, "choices") else None
+                choice = response.choices[0] if hasattr(response, "choices") else None  # type: ignore
                 if choice is None:
                     raise AttributeError("No choices in response")
-                message_data = choice.message if hasattr(choice, "message") else {}
-                
+                message_data = choice.message if hasattr(choice, "message") else {}  # type: ignore
+
                 # Convert to dict if needed
                 if not isinstance(message_data, dict):
                     message_data = vars(message_data) if hasattr(message_data, "__dict__") else {}
-                    
+
             # Process tool calls if present
             if isinstance(message_data, dict) and "tool_calls" in message_data:
                 for call in message_data["tool_calls"]:
@@ -123,8 +126,8 @@ class LiteLLMClient(ModelClient):
             else:
                 # Fallback for unexpected response format
                 yield Message(
-                    role="assistant", 
-                    kind="error", 
+                    role="assistant",
+                    kind="error",
                     content="Could not extract content from response"
                 )
         except Exception as e:

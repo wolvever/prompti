@@ -1,22 +1,33 @@
-import pytest
-import httpx
 import os
+from pathlib import Path
+
+import httpx
+import pytest
+from openai_mock_server import OpenAIMockServer
 
 from prompti.engine import PromptEngine, Setting
-from prompti.model_client import ModelClient, ModelConfig, Message, OpenAIClient
-from openai_mock_server import OpenAIMockServer
+from prompti.model_client import ModelConfig, OpenAIClient
 
 
 @pytest.mark.asyncio
 async def test_engine_with_tools():
     with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
-        engine = PromptEngine.from_setting(Setting(template_paths=["./prompts"]))
+        engine = PromptEngine.from_setting(Setting(template_paths=[Path("./prompts")]))
         client = OpenAIClient(client=httpx.AsyncClient())
         client.api_url = url  # type: ignore
         cfg = ModelConfig(provider="openai", model="gpt-3.5-turbo")
 
-        tools = [{"type": "function", "function": {"name": "get_time", "description": "Get the current time", "parameters": {"type": "object", "properties": {}, "required": []}}}]
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_time",
+                    "description": "Get the current time",
+                    "parameters": {"type": "object", "properties": {}, "required": []},
+                },
+            }
+        ]
         out = [
             m
             async for m in engine.run(

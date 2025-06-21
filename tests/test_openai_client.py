@@ -1,11 +1,12 @@
 import json
-import pytest
-import httpx
 import os
 
-from prompti.model_client import ModelConfig, OpenAIClient
-from prompti import Message
+import httpx
+import pytest
 from openai_mock_server import OpenAIMockServer
+
+from prompti.model_client import Message, ModelConfig, OpenAIClient
+
 
 @pytest.mark.asyncio
 async def test_openai_client():
@@ -24,7 +25,19 @@ async def test_openai_client():
         assert "2" in out[0].content
 
         messages = [Message(role="user", kind="text", content="What time is it?")]
-        cfg.parameters = {"tools": [{"type": "function", "function": {"name": "get_time", "description": "Get the current time", "parameters": {"type": "object", "properties": {}, "required": []}}}], "tool_choice": {"type": "function", "function": {"name": "get_time"}}}
+        cfg.parameters = {
+            "tools": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_time",
+                        "description": "Get the current time",
+                        "parameters": {"type": "object", "properties": {}, "required": []},
+                    },
+                }
+            ],
+            "tool_choice": {"type": "function", "function": {"name": "get_time"}},
+        }
         out = [m async for m in client.run(messages, cfg)]
         assert out[0].kind == "tool_use"
         data = json.loads(out[0].content)

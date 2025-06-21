@@ -1,13 +1,14 @@
 """Unit tests for ExperimentRegistry adapters and utilities."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-import httpx
 
-from prompti.experiment import bucket, UnleashRegistry, GrowthBookRegistry
+import httpx
+import pytest
+
 from prompti.engine import PromptEngine, Setting
-from prompti.model_client import ModelClient, ModelConfig
+from prompti.experiment import GrowthBookRegistry, UnleashRegistry, bucket
 from prompti.message import Message
+from prompti.model_client import ModelClient, ModelConfig
 
 
 def test_bucket_deterministic():
@@ -23,12 +24,12 @@ async def test_unleash_registry():
     mock_response = MagicMock()
     mock_response.json.return_value = {"name": "clarify", "variant": {"name": "A"}}
     mock_client.get.return_value = mock_response
-    
+
     reg = UnleashRegistry("http://unleash", client=mock_client)
     split = await reg.get_split("clarify", "u1")
     assert split.experiment_id == "clarify"
     assert split.variant == "A"
-    
+
     # Verify the correct URL was called
     mock_client.get.assert_called_once()
 
@@ -49,7 +50,7 @@ async def test_engine_sdk_split(tmp_path):
     reg = GrowthBookRegistry(features)
     settings = Setting(template_paths=["./prompts"])
     engine = PromptEngine.from_setting(settings)
-    
+
     # Create a mock client that properly inherits from ModelClient
     class MockClient(ModelClient):
         provider = "mock"

@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-import asyncio
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from pathlib import Path
-from typing import Any, AsyncGenerator, Awaitable, Callable, Tuple, Dict
+from typing import Any
 
+import yaml
 from async_lru import alru_cache
-from pydantic import BaseModel
 from opentelemetry import trace
 from prometheus_client import Counter
+from pydantic import BaseModel
 
-from .message import Message
-from .template import PromptTemplate
-import yaml
-from .model_client import ModelConfig, ModelClient
-from .loaders import HTTPLoader, MemoryLoader
 from .experiment import ExperimentRegistry, bucket
+from .loaders import HTTPLoader, MemoryLoader
+from .message import Message
+from .model_client import ModelClient, ModelConfig
+from .template import PromptTemplate
 
 _tracer = trace.get_tracer(__name__)
 ab_counter = Counter(
@@ -26,7 +26,7 @@ ab_counter = Counter(
 )
 
 TemplateLoader = Callable[
-    [str, str | None], Awaitable[Tuple[str, PromptTemplate]]
+    [str, str | None], Awaitable[tuple[str, PromptTemplate]]
 ]
 
 
@@ -37,7 +37,7 @@ class FileSystemLoader:
         """Create loader with a base directory."""
         self.base = base
 
-    async def __call__(self, name: str, label: str | None) -> Tuple[str, PromptTemplate]:
+    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
         """Load and return the template identified by ``name``."""
         path = self.base / f"{name}.yaml"
         text = path.read_text()
@@ -86,7 +86,7 @@ class PromptEngine:
         client: ModelClient,
         *,
         headers: dict[str, str] | None = None,
-        registry: "ExperimentRegistry | None" = None,
+        registry: ExperimentRegistry | None = None,
         user_id: str = "anon",
         tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
@@ -130,7 +130,7 @@ class PromptEngine:
                 yield msg
 
     @classmethod
-    def from_setting(cls, setting: "Setting") -> "PromptEngine":
+    def from_setting(cls, setting: Setting) -> PromptEngine:
         """Create an engine instance from a :class:`Setting`."""
         loaders = [FileSystemLoader(Path(p)) for p in setting.template_paths]
         if setting.registry_url:
