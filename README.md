@@ -26,7 +26,7 @@ provider‑specific protocols.
    python examples/basic.py
    ```
 
-   This will render `prompts/support_reply.jinja` and invoke the
+   This will render `prompts/support_reply.yaml` and invoke the
    `OpenAIClient`, printing messages to the console.
 
 Supported providers include **OpenAI**, **Claude (Anthropic)**, **OpenRouter**,
@@ -47,3 +47,105 @@ Prompti also supports SDK-level A/B experiments via the `ExperimentRegistry`
 interface with built-in **Unleash** and **GrowthBook** adapters.
 
 See `DESIGN.md` for a more detailed description of the architecture.
+
+## Template examples
+
+### Single message
+
+```python
+from prompti.template import PromptTemplate
+
+template = PromptTemplate(
+    id="hello",
+    name="hello",
+    version="1.0",
+    yaml="""
+messages:
+  - role: user
+    parts:
+      - type: text
+        text: "Hello {{ name }}!"
+""",
+)
+
+print(template.format({"name": "World"})[0].content)
+```
+
+### Multi-message
+
+```python
+multi = PromptTemplate(
+    id="analyze",
+    name="analyze",
+    version="1.0",
+    yaml="""
+messages:
+  - role: system
+    parts:
+      - type: text
+        text: "Analyze file"
+  - role: user
+    parts:
+      - type: file
+        file: "/tmp/document.pdf"
+""",
+)
+
+msgs = multi.format({"file_path": "/tmp/document.pdf"})
+for m in msgs:
+    print(m.role, m.kind, m.content)
+```
+
+### Jinja template
+
+```python
+tasks = [
+    {"name": "Fix bug", "priority": 9},
+    {"name": "Update docs", "priority": 3},
+]
+
+tmpl = PromptTemplate(
+    id="report",
+    name="report",
+    version="1.0",
+    yaml="""
+messages:
+  - role: user
+    parts:
+      - type: text
+        text: |
+          Task Report:
+          {% for t in tasks %}
+          - {{ t.name }} ({{ t.priority }})
+          {% endfor %}
+""",
+)
+
+print(tmpl.format({"tasks": tasks})[0].content)
+```
+
+### A/B test with GrowthBook
+
+```python
+import asyncio
+from prompti.engine import PromptEngine, Setting
+from prompti.experiment import GrowthBookRegistry
+from prompti.model_client import ModelConfig, OpenAIClient
+
+features = {"support_reply": {"id": "clarify", "variants": {"A": 1.0}}}
+reg = GrowthBookRegistry(features)
+
+async def main():
+    engine = PromptEngine.from_setting(Setting(template_paths=["./prompts"]))
+    async for msg in engine.run(
+        "support_reply",
+        {"name": "Ada", "issue": "login failed"},
+        None,
+        model_cfg=ModelConfig(provider="openai", model="gpt-4o"),
+        client=OpenAIClient(),
+        registry=reg,
+    ):
+        print(msg.content)
+
+asyncio.run(main())
+```
