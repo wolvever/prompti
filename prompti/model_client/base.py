@@ -37,8 +37,12 @@ class ModelClient:
         "llm_request_latency_seconds", "LLM latency", labelnames=["provider"]
     )
 
-    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
-        """Create the client with an optional :class:`httpx.AsyncClient`."""
+    def __init__(self, client: httpx.AsyncClient | None = None, **_: Any) -> None:
+        """Create the client with an optional :class:`httpx.AsyncClient`.
+
+        ``**_`` allows subclasses to accept additional parameters without
+        changing this base signature.
+        """
         self._client = client or httpx.AsyncClient(http2=True)
         self._tracer = trace.get_tracer(__name__)
 

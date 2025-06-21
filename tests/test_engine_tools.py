@@ -14,8 +14,7 @@ async def test_engine_with_tools():
     with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
         engine = PromptEngine.from_setting(Setting(template_paths=[Path("./prompts")]))
-        client = OpenAIClient(client=httpx.AsyncClient())
-        client.api_url = url  # type: ignore
+        client = OpenAIClient(client=httpx.AsyncClient(), api_url=url)
         cfg = ModelConfig(provider="openai", model="gpt-3.5-turbo")
 
         tools = [

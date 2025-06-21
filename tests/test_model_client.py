@@ -38,12 +38,7 @@ async def test_openai_like_providers(provider):
             "openai": OpenAIClient,
             "openrouter": OpenRouterClient,
         }
-        mc = client_map[provider](client=httpx.AsyncClient())
-        if provider == "openai":
-            mc.api_url = url  # type: ignore
-        else:
-            # For OpenRouter, we need to set the base URL
-            mc.api_url = url  # type: ignore
+        mc = client_map[provider](client=httpx.AsyncClient(), api_url=url)
 
         cfg = ModelConfig(provider=provider, model="gpt-3.5-turbo")
         messages = [Message(role="user", kind="text", content="hello")]
@@ -55,8 +50,7 @@ async def test_openai_like_providers(provider):
 async def test_model_client_tools():
     with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
-        mc = OpenAIClient(client=httpx.AsyncClient())
-        mc.api_url = url  # type: ignore
+        mc = OpenAIClient(client=httpx.AsyncClient(), api_url=url)
         cfg = ModelConfig(provider="openai", model="gpt-3.5-turbo")
         messages = [Message(role="user", kind="text", content="What time is it?")]
 
@@ -71,8 +65,7 @@ async def test_model_client_tools():
 async def test_model_client_tool_request_format():
     with OpenAIMockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
-        mc = OpenAIClient(client=httpx.AsyncClient())
-        mc.api_url = url  # type: ignore
+        mc = OpenAIClient(client=httpx.AsyncClient(), api_url=url)
         cfg = ModelConfig(provider="openai", model="gpt-3.5-turbo")
         messages = [Message(role="user", kind="text", content="What time is it?")]
 
