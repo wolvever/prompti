@@ -12,8 +12,7 @@ from prometheus_client import Counter
 from pydantic import BaseModel
 
 from .experiment import ExperimentRegistry, bucket
-from .loader import FileSystemLoader
-from .loaders import HTTPLoader, MemoryLoader
+from .loader import FileSystemLoader, HTTPLoader, MemoryLoader
 from .message import Message
 from .model_client import ModelClient, ModelConfig
 from .template import PromptTemplate
