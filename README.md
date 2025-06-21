@@ -39,7 +39,7 @@ key environment variables such as `OPENAI_API_KEY` before running examples.
 | Client            | Environment variables                        | Notes                              |
 | ----------------- | -------------------------------------------- | ---------------------------------- |
 | `OpenAIClient`    | `OPENAI_API_KEY`, optional `OPENAI_API_BASE` | Uses OpenAI chat completions.       |
-| `ClaudeClient`    | `ANTHROPIC_API_KEY`                          | Supports thinking, tool use, image |
+| `ClaudeClient`    | `ANTHROPIC_API_KEY`                          | Supports thinking, tool use, image. Accepts custom `api_url`, `api_key_var`, `api_key` |
 | `LiteLLMClient`   | `LITELLM_API_KEY`, `LITELLM_ENDPOINT`        | Routes through `litellm.acompletion` |
 | `RustModelClient` | n/a (reads from `ModelConfig.api_key`)       | Calls an external Rust binary.     |
 
