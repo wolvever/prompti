@@ -17,7 +17,7 @@ provider‑specific protocols.
 2. **Run the tests** to verify your environment:
 
    ```bash
-   pytest -q
+   python -m pytest -q
    ```
 
 3. **Execute an example** using the bundled prompt template:
@@ -47,3 +47,16 @@ Prompti also supports SDK-level A/B experiments via the `ExperimentRegistry`
 interface with built-in **Unleash** and **GrowthBook** adapters.
 
 See `DESIGN.md` for a more detailed description of the architecture.
+
+
+
+### File message scenarios
+
+| Scenario                      | Example                                                                                                                                                         | Notes                                                                                                     |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Inline binary upload (base64) | `json { "kind": "file", "file": { "name": "input_image.png", "mimeType": "image/png", "bytes": "iVBORw0KGgoAAA…" } } ` | Client embeds bytes directly. Good for small ≤ 1 MB payloads. ([a2aprotocol.ai][1]) |
+| Agent returns download link   | `json { "kind": "file", "file": { "name": "output.png", "mimeType": "image/png", "uri": "https://storage.example.com/processed/task-abc/output.png?sig=…" } } ` | Server hosts the blob and gives back a time-limited URI. Preferred for large files. ([a2aprotocol.ai][1]) |
+| Text file as artifact         | `json { "kind": "file", "file": { "name": "README.md", "mimeType": "text/markdown", "bytes": "IyBTYW1wbGUgTWFya2Rvd24gZmlsZQoK…" } } ` | Any MIME type works as long as the agent declares support. ([google-a2a.github.io][2]) |
+
+[1]: https://a2aprotocol.ai/docs/guide/a2a-sample-methods-and-json-responses "A2A Common Workflows & Examples | A2A Protocol Documentation"
+[2]: https://google-a2a.github.io/A2A/specification/ "Specification - Agent2Agent Protocol (A2A)"
