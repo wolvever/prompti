@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Primitive message type used throughout the package."""
+
+from __future__ import annotations
 
 from typing import Any
 from pydantic import BaseModel

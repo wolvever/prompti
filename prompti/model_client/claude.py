@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Claude (Anthropic) client implementation."""
+
+from __future__ import annotations
 
 import json
 import os

@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 """Base classes for model clients."""
 
+from __future__ import annotations
 from typing import Any, AsyncGenerator
 
 import httpx

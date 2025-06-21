@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """LiteLLM client implementation using the `litellm` package."""
+
+from __future__ import annotations
 
 from typing import Any, AsyncGenerator
 import json
@@ -19,7 +19,10 @@ class LiteLLMClient(ModelClient):
     endpoint_var = "LITELLM_ENDPOINT"
 
     async def _run(
-        self, messages: list[Message], model_cfg: ModelConfig
+        self,
+        messages: list[Message],
+        model_cfg: ModelConfig,
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[Message, None]:
         """Translate A2A messages and execute via :func:`litellm.acompletion`."""
 
@@ -71,32 +74,59 @@ class LiteLLMClient(ModelClient):
             **params,
         )
 
-        choice = response.choices[0]
-        msg = choice.message
-
-        if getattr(msg, "tool_calls", None):
-            for call in msg.tool_calls:
-                func = call["function"]
+        # Handle the response safely
+        try:
+            # Try to access as dictionary first
+            if isinstance(response, dict):
+                choice = response.get("choices", [{}])[0]
+                message_data = choice.get("message", {})
+            else:
+                # Try to access as object
+                choice = response.choices[0] if hasattr(response, "choices") else None
+                if choice is None:
+                    raise AttributeError("No choices in response")
+                message_data = choice.message if hasattr(choice, "message") else {}
+                
+                # Convert to dict if needed
+                if not isinstance(message_data, dict):
+                    message_data = vars(message_data) if hasattr(message_data, "__dict__") else {}
+                    
+            # Process tool calls if present
+            if isinstance(message_data, dict) and "tool_calls" in message_data:
+                for call in message_data["tool_calls"]:
+                    if isinstance(call, dict) and "function" in call:
+                        func = call["function"]
+                        yield Message(
+                            role="assistant",
+                            kind="tool_use",
+                            content=json.dumps({
+                                "name": func.get("name"),
+                                "arguments": json.loads(func.get("arguments", "{}")),
+                            }),
+                        )
+            # Process function call if present
+            elif isinstance(message_data, dict) and "function_call" in message_data:
+                func = message_data["function_call"]
                 yield Message(
                     role="assistant",
                     kind="tool_use",
-                    content=json.dumps(
-                        {
-                            "name": func.get("name"),
-                            "arguments": json.loads(func.get("arguments", "{}")),
-                        }
-                    ),
+                    content={
+                        "name": func.get("name"),
+                        "arguments": json.loads(func.get("arguments", "{}")),
+                    },
                 )
-        elif getattr(msg, "function_call", None):
-            func = msg.function_call
-            yield Message(
-                role="assistant",
-                kind="tool_use",
-                content={
-                    "name": func.get("name"),
-                    "arguments": json.loads(func.get("arguments", "{}")),
-                },
-            )
-        elif getattr(msg, "content", None):
-            yield Message(role="assistant", kind="text", content=msg.content)
+            # Process content if present
+            elif isinstance(message_data, dict) and "content" in message_data:
+                content = message_data["content"]
+                if content:
+                    yield Message(role="assistant", kind="text", content=content)
+            else:
+                # Fallback for unexpected response format
+                yield Message(
+                    role="assistant", 
+                    kind="error", 
+                    content="Could not extract content from response"
+                )
+        except Exception as e:
+            yield Message(role="assistant", kind="error", content=f"Error processing response: {str(e)}")
 

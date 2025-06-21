@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """OpenAI client implementation."""
+
+from __future__ import annotations
 
 import os
 

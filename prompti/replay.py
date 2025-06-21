@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Replay and recording utilities."""
+
+from __future__ import annotations
 
 import json
 from pathlib import Path
