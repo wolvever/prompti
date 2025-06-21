@@ -1,6 +1,7 @@
 """Tests for the Rust model client."""
 
 import os
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -97,3 +98,37 @@ async def test_rust_client_run_error():
         with pytest.raises(RuntimeError, match="Rust client failed"):
             async for _ in client._run(messages, model_cfg):
                 pass
+
+
+@pytest.mark.asyncio
+async def test_rust_client_tools_support():
+    """Ensure tool definitions are forwarded to the Rust client."""
+
+    captured: dict[str, Any] = {}
+
+    class DummyClient:
+        async def chat_stream(self, request):
+            captured.update(request)
+            yield {"content": "ok"}
+
+    tool = {
+        "type": "function",
+        "function": {
+            "name": "get_time",
+            "description": "Get current time",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    }
+
+    with patch("prompti.model_client.rust.rs_client.ModelClient", return_value=DummyClient()):
+        client = RustModelClient()
+
+        messages = [Message(role="user", content="What time?", kind="text")]
+        cfg = ModelConfig(api_key="k", provider="openai", model="gpt-3.5-turbo")
+        cfg.parameters = {"tool_choice": "auto"}
+
+        results = [m async for m in client._run(messages, cfg, tools=[tool])]
+
+        assert captured.get("tools") == [tool]
+        assert captured.get("tool_choice") == "auto"
+        assert results[0].content == "ok"
