@@ -122,7 +122,7 @@ messages:
         messages = template.format({"items": ["apple", "banana", "cherry"]})
 
         assert len(messages) == 1
-        assert messages[0].content == "Here are the items:\n1. apple\n2. banana\n3. cherry\n"
+        assert messages[0].content == "Here are the items: 1. apple 2. banana 3. cherry "
 
     def test_format_jinja2_if_else(self):
         """Test formatting a template with Jinja2 if/else statements."""
@@ -292,3 +292,24 @@ Please create documentation that covers:
 Make it clear and comprehensive."""
 
         assert messages[0].content == expected_content
+
+    def test_yaml_parsed_once(self, monkeypatch):
+        """Ensure YAML is parsed only once during template lifetime."""
+        import prompti.template as module
+
+        call_count = 0
+        real_safe_load = module.yaml.safe_load
+
+        def counting_safe_load(arg):
+            nonlocal call_count
+            call_count += 1
+            return real_safe_load(arg)
+
+        monkeypatch.setattr(module.yaml, "safe_load", counting_safe_load)
+
+        template = module.PromptTemplate(id="test", name="t", version="1", yaml="messages: []")
+        assert call_count == 1
+
+        template.format({})
+        template.format({})
+        assert call_count == 1

@@ -8,7 +8,7 @@ from typing import Any
 import yaml
 from jinja2 import StrictUndefined
 from jinja2.sandbox import SandboxedEnvironment
-from pydantic import BaseModel
+from pydantic import BaseModel, PrivateAttr
 
 from .message import Message
 from .model_client import ModelClient, ModelConfig
@@ -26,6 +26,12 @@ class PromptTemplate(BaseModel):
     required_variables: list[str] = []
     yaml: str = ""
 
+    _data: dict[str, Any] = PrivateAttr(default_factory=dict)
+
+    def model_post_init(self, _context: Any) -> None:
+        """Parse YAML once after model initialization."""
+        self._data = yaml.safe_load(self.yaml) if self.yaml else {}
+
     def format(
         self,
         variables: dict[str, Any],
@@ -35,8 +41,7 @@ class PromptTemplate(BaseModel):
         if missing:
             raise KeyError(f"missing variables: {missing}")
 
-        ydata = yaml.safe_load(self.yaml) if self.yaml else {}
-        messages = ydata.get("messages", [])
+        messages = self._data.get("messages", [])
 
         results: list[Message] = []
         for msg in messages:
@@ -44,8 +49,10 @@ class PromptTemplate(BaseModel):
             for part in msg.get("parts", []):
                 ptype = part.get("type")
                 if ptype == "text":
-                    text = part.get("text", "")
+                    text = part.get("text", "").replace("\\n", "\n")
                     rendered = _env.from_string(text).render(**variables)
+                    # Preserve trailing spaces but remove leading/trailing newlines
+                    rendered = rendered.strip("\n")
                     results.append(Message(role=role, kind="text", content=rendered))
                 elif ptype == "file":
                     results.append(
