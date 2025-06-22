@@ -1,10 +1,25 @@
-# Prompti
+# 🚀 Prompti
+
+**Provider-agnostic asynchronous prompt engine with A2A message format and Jinja2 templating**
+
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Prompti is a provider‑agnostic asynchronous prompt engine built around the
 Agent‑to‑Agent (A2A) message format. Prompts are stored as YAML templates with Jinja-formatted text and
 may be loaded from disk, memory or a remote registry. All LLM calls are routed
 through a pluggable `ModelClient` so that calling code never deals with
 provider‑specific protocols.
+
+## 🌟 Key Features
+
+- **🔄 Provider Agnostic**: Unified interface for OpenAI, Claude, OpenRouter, LiteLLM, and custom providers
+- **📝 Jinja2 Templates**: First-class support for dynamic prompt templating with loops, filters, and safe sandboxing
+- **⚡ Async First**: Full asynchronous workflow with cloud-native observability (OpenTelemetry, Prometheus)
+- **🎯 A2A Message Format**: Standardized Agent-to-Agent communication with support for text, files, data, and tool interactions
+- **🧪 A/B Testing**: Built-in experiment framework with Unleash and GrowthBook adapters
+- **📂 Multi-Source Templates**: Load prompts from local files, remote registries, or in-memory storage
+- **🔒 Rust Performance**: Optional Rust-based model client for high-performance integrations
 
 ## Get started
 
@@ -30,27 +45,26 @@ provider‑specific protocols.
    OpenAI model via `create_client`, printing messages to the console.
 
 Supported providers include **OpenAI**, **Claude (Anthropic)**, **OpenRouter**,
-**LiteLLM**, and a **Rust**-based client for custom integrations.  Each provider
-has its own `ModelClient` subclass (e.g. `OpenAIClient`).  Set the relevant API
-key environment variables such as `OPENAI_API_KEY` before running examples.  The
-Rust client is compiled as a Python extension and accessed through a thin
-wrapper rather than spawning a subprocess.
+**LiteLLM**.  Each provider has its own `ModelClient` subclass (e.g. `OpenAIClient`).  
+Set the relevant API key environment variables such as `OPENAI_API_KEY` before 
+running examples.  The Rust client is compiled as a Python extension and accessed 
+through a thin wrapper rather than spawning a subprocess.
 
-### Built-in model clients
+## 🛠️ Supported Providers
 
-| Client            | Environment variables                        | Notes                              |
-| ----------------- | -------------------------------------------- | ---------------------------------- |
-| `OpenAIClient`    | `OPENAI_API_KEY`, optional `OPENAI_API_BASE` | Uses OpenAI chat completions.       |
-| `ClaudeClient`    | `ANTHROPIC_API_KEY`                          | Supports thinking, tool use, image. Accepts custom `api_url`, `api_key_var`, `api_key` |
-| `LiteLLMClient`   | `LITELLM_API_KEY`, `LITELLM_ENDPOINT`        | Routes through `litellm.acompletion` |
-| `RustModelClient` | n/a (reads from `ModelConfig.api_key`)       | Uses the `model_client_rs` library directly via a Python wrapper. |
+| Provider | Environment Variables | Notes |
+|----------|----------------------|-------|
+| **OpenAI** | `OPENAI_API_KEY`, `OPENAI_API_BASE` | Chat completions API |
+| **Claude** | `ANTHROPIC_API_KEY` | Supports thinking, tools, images |
+| **LiteLLM** | `LITELLM_API_KEY`, `LITELLM_ENDPOINT` | Universal LLM gateway |
+| **Rust Client** | Via `ModelConfig.api_key` | High-performance native client (source code from OpenAI Codex CLI) |
 
 Prompti also supports SDK-level A/B experiments via the `ExperimentRegistry`
 interface with built-in **Unleash** and **GrowthBook** adapters.
 
 See `DESIGN.md` for a more detailed description of the architecture.
 
-### A2A message parts
+## 💬 A2A Message Format
 
 Messages consist of an array of parts. The three common part shapes are:
 
@@ -60,7 +74,7 @@ Messages consist of an array of parts. The three common part shapes are:
 { "kind": "data", "data": { "action": "create-issue", "fields": { "project": "MLInfra", "severity": "high", "title": "GPU node failure" } } }
 ```
 
-## Template examples
+## 📝 Template Examples
 
 ### Single message
 
@@ -162,4 +176,28 @@ async def main():
         print(msg.content)
 
 asyncio.run(main())
+```
+
+## 🧪 Use Cases
+
+- **Multi-provider LLM Applications**: Build applications that can switch between different LLM providers seamlessly
+- **Dynamic Prompt Management**: Use Jinja2 templates for complex, data-driven prompt generation
+- **A/B Testing**: Experiment with different prompt versions and model configurations
+- **Agent Workflows**: Implement complex agent-to-agent communication patterns
+- **Production LLM Systems**: Deploy robust, observable LLM applications with proper error handling and monitoring
+
+## 📖 Documentation
+
+- See `DESIGN.md` for detailed architecture and design decisions
+- Check `examples/` directory for usage patterns
+- Review `prompts/` for template examples
+
+## 📋 Requirements
+
+- Python 3.10+
+- uv (for dependency management)
+
+---
+
+*Built for production LLM applications that need flexibility, performance, and reliability.*
 ```
