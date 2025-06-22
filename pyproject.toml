@@ -3,7 +3,7 @@ name = "prompti"
 version = "0.1.0"
 description = "Provider-agnostic asynchronous prompt engine"
 authors = [
-  { name = "PromptI Developers" }
+  { name = "wolvever" }
 ]
 readme = "README.md"
 license = {text = "MIT"}
