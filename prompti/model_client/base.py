@@ -14,6 +14,8 @@ from prometheus_client import Counter, Gauge, Histogram
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
+import logging
+
 from ..message import Message
 
 
@@ -129,6 +131,32 @@ class ModelClient:
         self.cfg = cfg
         self._client = client or httpx.AsyncClient(http2=True)
         self._tracer = trace.get_tracer(__name__)
+        self._logger = logging.getLogger(self.__class__.__name__)
+        self._client.event_hooks.setdefault("request", []).append(self._log_request)
+        self._client.event_hooks.setdefault("response", []).append(self._log_response)
+
+    async def _log_request(self, request: httpx.Request) -> None:
+        """Log outgoing HTTP request details."""
+        body = request.content
+        if isinstance(body, (bytes, bytearray)):
+            try:
+                body = body.decode()
+            except Exception:
+                body = str(body)
+        self._logger.info(
+            "http request",
+            extra={"method": request.method, "url": str(request.url), "body": body},
+        )
+
+    async def _log_response(self, response: httpx.Response) -> None:
+        """Log incoming HTTP response details."""
+        content = await response.aread()
+        text = content.decode(response.encoding or "utf-8", "replace")
+        self._logger.info(
+            "http response",
+            extra={"status": response.status_code, "body": text},
+        )
+        response._content = content
 
     @retry(wait=wait_exponential_jitter(), stop=stop_after_attempt(3))
     async def run(self, params: RunParams) -> AsyncGenerator[Message, None]:
@@ -163,8 +191,17 @@ class ModelClient:
             self._tracer.start_as_current_span("llm.call", attributes=attrs),
             self._histogram.labels(self.cfg.provider).time(),
         ):
+            self._logger.info(
+                "request payload", extra={
+                    "model_config": self.cfg.model_dump(),
+                    "run_params": params.model_dump(),
+                },
+            )
             try:
                 async for msg in self._run(params):
+                    self._logger.info(
+                        "response chunk", extra={"message": msg.model_dump()}
+                    )
                     now = perf_counter()
                     if first:
                         self._first_token.labels(

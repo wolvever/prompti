@@ -50,6 +50,21 @@ Set the relevant API key environment variables such as `OPENAI_API_KEY` before
 running examples.  The Rust client is compiled as a Python extension and accessed 
 through a thin wrapper rather than spawning a subprocess.
 
+4. **Send an ad-hoc query via the CLI**:
+
+   ```bash
+   python examples/chat_cli.py -q "Hello" \
+       --api-key YOUR_KEY --model gpt-4o \
+       -f README.md --time-tool --reasoning
+   ```
+
+   Use `-f` to attach files, `--time-tool` to enable a sample `get_time` tool,
+   and `--reasoning` to request thinking messages when supported.
+   Add `--no-stream` to disable streaming.
+   Metrics are available at `http://localhost:8000/metrics`.
+   Logs and OpenTelemetry spans (including the full request and each response chunk) are printed to the console.
+
+
 ## 🛠️ Supported Providers
 
 | Provider | Environment Variables | Notes |
