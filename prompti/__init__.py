@@ -8,6 +8,17 @@ from .experiment import (
     UnleashRegistry,
     bucket,
 )
+from .loader import (
+    AgentaLoader,
+    FileSystemLoader,
+    GitHubRepoLoader,
+    HTTPLoader,
+    LangfuseLoader,
+    LocalGitRepoLoader,
+    MemoryLoader,
+    PezzoLoader,
+    PromptLayerLoader,
+)
 from .message import Kind, Message
 from .model_client import (
     ClaudeClient,
@@ -48,4 +59,13 @@ __all__ = [
     "GrowthBookRegistry",
     "bucket",
     "Kind",
+    "HTTPLoader",
+    "FileSystemLoader",
+    "MemoryLoader",
+    "PromptLayerLoader",
+    "LangfuseLoader",
+    "PezzoLoader",
+    "AgentaLoader",
+    "GitHubRepoLoader",
+    "LocalGitRepoLoader",
 ]
