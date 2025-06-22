@@ -72,7 +72,7 @@ graph TD
 
 ```rust
 #[pyfunction]
-pub fn genhttp_create_client(py: Python<'_>, cfg: &PyAny) -> PyResult<Py<PyAny>> {
+pub fn create_client(py: Python<'_>, cfg: &PyAny) -> PyResult<Py<PyAny>> {
     // ❶ Parse kwargs while holding the GIL
     let opts = ClientOpts::from_py(py, cfg)?;
 
@@ -258,7 +258,7 @@ impl PluginFactory for Factory {
 ### 7.7 Sample Python Usage
 
 ```python
-cli = HttpClient(
+client = HttpClient(
     base_url="https://api.openai.com",
     plugins=[
         {"name": "llm", "cfg": {"count_tokens": True}},
@@ -266,7 +266,7 @@ cli = HttpClient(
     ],
 )
 
-r = await cli.request("POST", "/v1/chat/completions", json={...})
+r = await client.request("POST", "/v1/chat/completions", json={...})
 print(r.status_code)
 ```
 
