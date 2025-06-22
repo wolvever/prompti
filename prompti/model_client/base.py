@@ -8,7 +8,8 @@ from typing import Any
 
 import httpx
 from opentelemetry import trace
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
+from time import perf_counter
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
@@ -82,9 +83,44 @@ class ModelClient:
     provider: str = "generic"
 
     _counter = Counter("llm_tokens_total", "Tokens in/out", labelnames=["direction"])
-    _histogram = Histogram("llm_request_latency_seconds", "LLM latency", labelnames=["provider"])
+    _histogram = Histogram(
+        "llm_request_latency_seconds", "LLM latency", labelnames=["provider"]
+    )
+    _inflight = Gauge(
+        "llm_inflight_requests",
+        "Inflight LLM requests",
+        labelnames=["provider", "is_error"],
+    )
+    _request_counter = Counter(
+        "llm_requests_total",
+        "LLM request results",
+        labelnames=["provider", "result", "is_error"],
+    )
+    _first_token = Histogram(
+        "llm_first_token_latency_seconds",
+        "Time to first token",
+        labelnames=["provider", "model"],
+        buckets=(0.1, 0.25, 0.5, 1, 2, 5, 10),
+    )
+    _token_gap = Histogram(
+        "llm_stream_intertoken_gap_seconds",
+        "Gap between streamed tokens",
+        labelnames=["provider", "model"],
+    )
+    _prompt_tokens = Counter(
+        "llm_prompt_tokens_total",
+        "Prompt tokens sent to the provider",
+        labelnames=["provider", "model"],
+    )
+    _completion_tokens = Counter(
+        "llm_completion_tokens_total",
+        "Completion tokens received from the provider",
+        labelnames=["provider", "model"],
+    )
 
-    def __init__(self, cfg: ModelConfig, client: httpx.AsyncClient | None = None, **_: Any) -> None:
+    def __init__(
+        self, cfg: ModelConfig, client: httpx.AsyncClient | None = None, **_: Any
+    ) -> None:
         """Create the client with static :class:`ModelConfig` and optional HTTP client."""
 
         self.cfg = cfg
@@ -94,13 +130,44 @@ class ModelClient:
     @retry(wait=wait_exponential_jitter(), stop=stop_after_attempt(3))
     async def run(self, params: RunParams) -> AsyncGenerator[Message, None]:
         """Execute the LLM call with dynamic ``params``."""
-
-        with self._tracer.start_as_current_span(
-            "llm.call",
-            attributes={"provider": self.cfg.provider, "model": self.cfg.model},
-        ), self._histogram.labels(self.cfg.provider).time():
-            async for msg in self._run(params):
-                yield msg
+        is_error = False
+        self._inflight.labels(self.cfg.provider, "false").inc()
+        result = "success"
+        start = perf_counter()
+        first = True
+        last = start
+        with (
+            self._tracer.start_as_current_span(
+                "llm.call",
+                attributes={"provider": self.cfg.provider, "model": self.cfg.model},
+            ),
+            self._histogram.labels(self.cfg.provider).time(),
+        ):
+            try:
+                async for msg in self._run(params):
+                    now = perf_counter()
+                    if first:
+                        self._first_token.labels(
+                            self.cfg.provider, self.cfg.model
+                        ).observe(now - start)
+                        first = False
+                    else:
+                        self._token_gap.labels(
+                            self.cfg.provider, self.cfg.model
+                        ).observe(now - last)
+                    last = now
+                    yield msg
+            except Exception:
+                is_error = True
+                result = "error"
+                raise
+            else:
+                result = "success"
+            finally:
+                self._inflight.labels(self.cfg.provider, "false").dec()
+                self._request_counter.labels(
+                    self.cfg.provider, result, str(is_error).lower()
+                ).inc()
 
     async def _run(self, params: RunParams) -> AsyncGenerator[Message, None]:
         raise NotImplementedError

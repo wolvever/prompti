@@ -48,9 +48,13 @@ class OpenAIClient(ModelClient):
             if m.kind in {"text", "thinking"}:
                 msg["content"] = m.content
             elif m.kind == "image_url":
-                msg["content"] = [{"type": "image_url", "image_url": {"url": m.content}}]
+                msg["content"] = [
+                    {"type": "image_url", "image_url": {"url": m.content}}
+                ]
             elif m.kind == "tool_use":
-                data = m.content if isinstance(m.content, dict) else json.loads(m.content)
+                data = (
+                    m.content if isinstance(m.content, dict) else json.loads(m.content)
+                )
                 msg["content"] = None
                 msg["tool_calls"] = [
                     {
@@ -63,7 +67,9 @@ class OpenAIClient(ModelClient):
                 ]
             elif m.kind == "tool_result":
                 msg["content"] = (
-                    json.dumps(m.content) if not isinstance(m.content, str) else m.content
+                    json.dumps(m.content)
+                    if not isinstance(m.content, str)
+                    else m.content
                 )
             else:
                 continue
@@ -89,7 +95,11 @@ class OpenAIClient(ModelClient):
         if p.tool_params:
             if isinstance(p.tool_params, ToolParams):
                 tools = [
-                    {"type": "function", "function": t.model_dump()} if isinstance(t, ToolSpec) else t
+                    (
+                        {"type": "function", "function": t.model_dump()}
+                        if isinstance(t, ToolSpec)
+                        else t
+                    )
                     for t in p.tool_params.tools
                 ]
                 payload["tools"] = tools
@@ -102,7 +112,11 @@ class OpenAIClient(ModelClient):
             else:
                 # assume raw list
                 payload["tools"] = [
-                    {"type": "function", "function": t.model_dump()} if isinstance(t, ToolSpec) else t
+                    (
+                        {"type": "function", "function": t.model_dump()}
+                        if isinstance(t, ToolSpec)
+                        else t
+                    )
                     for t in p.tool_params
                 ]
 
@@ -115,6 +129,20 @@ class OpenAIClient(ModelClient):
             yield Message(role="assistant", kind="error", content=resp.text)
             return
         data = resp.json()
+        usage = data.get("usage", {}) if isinstance(data, dict) else {}
+        if usage:
+            pt = (
+                usage.get("prompt_tokens")
+                or usage.get("prompt_token")
+                or usage.get("input_tokens")
+            )
+            ct = usage.get("completion_tokens") or usage.get("output_tokens")
+            if pt is not None:
+                self._prompt_tokens.labels(self.cfg.provider, self.cfg.model).inc(pt)
+            if ct is not None:
+                self._completion_tokens.labels(self.cfg.provider, self.cfg.model).inc(
+                    ct
+                )
         msg = data.get("choices", [{}])[0].get("message", {})
         if "tool_calls" in msg:
             for call in msg["tool_calls"]:
@@ -122,15 +150,22 @@ class OpenAIClient(ModelClient):
                 yield Message(
                     role="assistant",
                     kind="tool_use",
-                    content=json.dumps({"name": func["name"], "arguments": json.loads(func.get("arguments", "{}"))}),
+                    content=json.dumps(
+                        {
+                            "name": func["name"],
+                            "arguments": json.loads(func.get("arguments", "{}")),
+                        }
+                    ),
                 )
         elif "function_call" in msg:
             func = msg["function_call"]
             yield Message(
                 role="assistant",
                 kind="tool_use",
-                content={"name": func.get("name"), "arguments": json.loads(func.get("arguments", "{}"))},
+                content={
+                    "name": func.get("name"),
+                    "arguments": json.loads(func.get("arguments", "{}")),
+                },
             )
         elif msg.get("content"):
             yield Message(role="assistant", kind="text", content=msg["content"])
-
