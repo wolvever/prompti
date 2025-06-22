@@ -8,6 +8,9 @@ use reqwest::Client;
 use std::sync::Arc;
 use std::pin::Pin;
 use futures::Stream;
+use std::time::Instant;
+use futures::StreamExt;
+use metrics::{counter, gauge, histogram};
 
 pub struct ModelClient {
     provider: Arc<dyn Provider>,
@@ -33,10 +36,62 @@ impl ModelClient {
     }
 
     pub async fn chat(&self, req: &ChatRequest) -> ModelResult<ChatResponse> {
-        self.provider.chat(req).await
+        let provider = self.provider.id().to_string();
+        let model = req.model.clone();
+        gauge!("llm_inflight_requests", 1.0, "provider" => provider.clone(), "is_error" => "false");
+        let start = Instant::now();
+        let resp = self.provider.chat(req).await;
+        histogram!("llm_request_latency_seconds", start.elapsed().as_secs_f64(), "provider" => provider.clone());
+        gauge!("llm_inflight_requests", -1.0, "provider" => provider.clone(), "is_error" => "false");
+        match &resp {
+            Ok(r) => {
+                counter!("llm_requests_total", 1, "provider" => provider.clone(), "result" => "success", "is_error" => "false");
+                if let Some(usage) = &r.usage {
+                    counter!("llm_prompt_tokens_total", usage.prompt_tokens as u64, "provider" => provider.clone(), "model" => model.clone());
+                    counter!("llm_completion_tokens_total", usage.completion_tokens as u64, "provider" => provider.clone(), "model" => model.clone());
+                }
+            }
+            Err(_) => {
+                counter!("llm_requests_total", 1, "provider" => provider.clone(), "result" => "error", "is_error" => "true");
+            }
+        }
+        resp
     }
 
     pub async fn chat_stream(&self, req: &ChatRequest) -> ModelResult<Pin<Box<dyn Stream<Item = ModelResult<StreamingChatResponse>> + Send>>> {
-        self.provider.chat_stream(req).await
+        let provider = self.provider.id().to_string();
+        let model = req.model.clone();
+        gauge!("llm_inflight_requests", 1.0, "provider" => provider.clone(), "is_error" => "false");
+        let start = Instant::now();
+        match self.provider.chat_stream(req).await {
+            Ok(stream) => {
+                let provider_cl = provider.clone();
+                let model_cl = model.clone();
+                let mut first = true;
+                let mut last = start;
+                let wrapped = stream.inspect(move |res| {
+                    if res.is_ok() {
+                        let now = Instant::now();
+                        if first {
+                            histogram!("llm_first_token_latency_seconds", now.duration_since(start).as_secs_f64(), "provider" => provider_cl.clone(), "model" => model_cl.clone());
+                            first = false;
+                        } else {
+                            histogram!("llm_stream_intertoken_gap_seconds", now.duration_since(last).as_secs_f64(), "provider" => provider_cl.clone(), "model" => model_cl.clone());
+                        }
+                        last = now;
+                    }
+                });
+                histogram!("llm_request_latency_seconds", start.elapsed().as_secs_f64(), "provider" => provider.clone());
+                gauge!("llm_inflight_requests", -1.0, "provider" => provider.clone(), "is_error" => "false");
+                counter!("llm_requests_total", 1, "provider" => provider.clone(), "result" => "success", "is_error" => "false");
+                Ok(Box::pin(wrapped))
+            }
+            Err(e) => {
+                histogram!("llm_request_latency_seconds", start.elapsed().as_secs_f64(), "provider" => provider.clone());
+                gauge!("llm_inflight_requests", -1.0, "provider" => provider.clone(), "is_error" => "true");
+                counter!("llm_requests_total", 1, "provider" => provider.clone(), "result" => "error", "is_error" => "true");
+                Err(e)
+            }
+        }
     }
-} 
+}

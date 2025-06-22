@@ -29,6 +29,7 @@ bytes = "1.0"
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+metrics = "0.21"
 
 # URL handling
 url = "2.0"

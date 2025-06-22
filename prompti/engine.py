@@ -88,6 +88,8 @@ class PromptEngine:
             "prompt.run",
             attributes={
                 "prompt.version": tmpl.version,
+                "genai.prompt.id": tmpl.id,
+                "genai.prompt.version": tmpl.version,
                 "ab.experiment": exp_id or "none",
                 "ab.variant": variant or "control",
             },

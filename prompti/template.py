@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from typing import Any
+from time import perf_counter
+
+from prometheus_client import Histogram
 
 import yaml
 from jinja2 import StrictUndefined
@@ -20,6 +23,12 @@ from .model_client import (
 )
 
 _env = SandboxedEnvironment(undefined=StrictUndefined)
+
+_format_latency = Histogram(
+    "prompt_format_latency_seconds",
+    "Time spent formatting a prompt",
+    labelnames=["template_id", "version"],
+)
 
 
 class PromptTemplate(BaseModel):
@@ -43,26 +52,30 @@ class PromptTemplate(BaseModel):
         variables: dict[str, Any],
         tag: str | None = None,
     ) -> list[Message]:
-        missing = [v for v in self.required_variables if v not in variables]
-        if missing:
-            raise KeyError(f"missing variables: {missing}")
+        start = perf_counter()
+        try:
+            missing = [v for v in self.required_variables if v not in variables]
+            if missing:
+                raise KeyError(f"missing variables: {missing}")
 
-        messages = self._data.get("messages", [])
+            messages = self._data.get("messages", [])
 
-        results: list[Message] = []
-        for msg in messages:
-            role = msg.get("role")
-            for part in msg.get("parts", []):
-                ptype = part.get("type")
-                if ptype == "text":
-                    text = part.get("text", "").replace("\\n", "\n")
-                    rendered = _env.from_string(text).render(**variables)
-                    # Preserve trailing spaces but remove leading/trailing newlines
-                    rendered = rendered.strip("\n")
-                    results.append(Message(role=role, kind=Kind.TEXT, content=rendered))
-                elif ptype == "file":
-                    results.append(Message(role=role, kind="file", content=part.get("file")))
-        return results
+            results: list[Message] = []
+            for msg in messages:
+                role = msg.get("role")
+                for part in msg.get("parts", []):
+                    ptype = part.get("type")
+                    if ptype == "text":
+                        text = part.get("text", "").replace("\\n", "\n")
+                        rendered = _env.from_string(text).render(**variables)
+                        # Preserve trailing spaces but remove leading/trailing newlines
+                        rendered = rendered.strip("\n")
+                        results.append(Message(role=role, kind=Kind.TEXT, content=rendered))
+                    elif ptype == "file":
+                        results.append(Message(role=role, kind="file", content=part.get("file")))
+            return results
+        finally:
+            _format_latency.labels(self.id, self.version).observe(perf_counter() - start)
 
     async def run(
         self,

@@ -65,7 +65,9 @@ class ClaudeClient(ModelClient):
                     }
                 )
             elif m.kind == "tool_use":
-                data = m.content if isinstance(m.content, dict) else json.loads(m.content)
+                data = (
+                    m.content if isinstance(m.content, dict) else json.loads(m.content)
+                )
                 blocks.append(
                     {
                         "type": "tool_use",
@@ -94,26 +96,30 @@ class ClaudeClient(ModelClient):
         if p.tool_params:
             if isinstance(p.tool_params, ToolParams):
                 payload["tools"] = [
-                    {
-                        "name": spec.name,
-                        "description": spec.description,
-                        "input_schema": spec.parameters,
-                    }
-                    if isinstance(spec, ToolSpec)
-                    else spec
+                    (
+                        {
+                            "name": spec.name,
+                            "description": spec.description,
+                            "input_schema": spec.parameters,
+                        }
+                        if isinstance(spec, ToolSpec)
+                        else spec
+                    )
                     for spec in p.tool_params.tools
                 ]
                 if p.tool_params.choice == ToolChoice.REQUIRED:
                     payload["tool_choice"] = {"type": "any"}
             else:
                 payload["tools"] = [
-                    {
-                        "name": spec.name,
-                        "description": spec.description,
-                        "input_schema": spec.parameters,
-                    }
-                    if isinstance(spec, ToolSpec)
-                    else spec
+                    (
+                        {
+                            "name": spec.name,
+                            "description": spec.description,
+                            "input_schema": spec.parameters,
+                        }
+                        if isinstance(spec, ToolSpec)
+                        else spec
+                    )
                     for spec in p.tool_params
                 ]
 
@@ -124,6 +130,20 @@ class ClaudeClient(ModelClient):
             return
 
         data = resp.json()
+        usage = data.get("usage", {}) if isinstance(data, dict) else {}
+        if usage:
+            pt = (
+                usage.get("prompt_tokens")
+                or usage.get("prompt_token")
+                or usage.get("input_tokens")
+            )
+            ct = usage.get("completion_tokens") or usage.get("output_tokens")
+            if pt is not None:
+                self._prompt_tokens.labels(self.cfg.provider, self.cfg.model).inc(pt)
+            if ct is not None:
+                self._completion_tokens.labels(self.cfg.provider, self.cfg.model).inc(
+                    ct
+                )
         blocks = data.get("content", []) if isinstance(data, dict) else []
         for blk in blocks:
             if blk.get("type") == "thinking":
@@ -143,5 +163,6 @@ class ClaudeClient(ModelClient):
                     },
                 )
             elif blk.get("type") == "text":
-                yield Message(role="assistant", kind="text", content=blk.get("text", ""))
-
+                yield Message(
+                    role="assistant", kind="text", content=blk.get("text", "")
+                )
