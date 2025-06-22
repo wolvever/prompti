@@ -56,3 +56,10 @@ select = [
 "tests/*" = ["S101", "B018"]
 "examples/*" = ["B018"]
 "prompti/model_client_rs/model_client.py" = ["S101"]
+
+[tool.pyright]
+exclude = ["**/__pycache__"]
+reportMissingImports = "warning"
+reportMissingModuleSource = "none"
+
+[tool.pyright.strict]
