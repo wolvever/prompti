@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from .openai_base import _OpenAICore
+from .openai import OpenAIClient
 
 
-class OpenRouterClient(_OpenAICore):
+class OpenRouterClient(OpenAIClient):
     """Client for the OpenRouter API."""
 
     provider = "openrouter"

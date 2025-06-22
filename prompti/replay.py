@@ -6,14 +6,13 @@ import json
 from collections.abc import AsyncGenerator, Callable, Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 from uuid import uuid4
 
 import aiofiles
 from prometheus_client import Counter
 
 from .message import Message
-from .model_client import ModelClient, ModelConfig
+from .model_client import ModelClient, ModelConfig, RunParams
 
 
 class ReplayError(Exception):
@@ -33,7 +32,7 @@ class ModelClientRecorder(ModelClient):
         session_id: str,
         output_dir: str | Path | None = None,
     ) -> None:
-        super().__init__(client=client._client)
+        super().__init__(client.cfg, client=client._client)
         self._wrapped = client
         self.session_id = session_id
         self.output_dir = Path(output_dir or Path.home() / ".prompt/sessions")
@@ -53,25 +52,23 @@ class ModelClientRecorder(ModelClient):
 
     async def _run(
         self,
-        messages: list[Message],
-        model_cfg: ModelConfig,
-        tools: list[dict[str, Any]] | None = None,
+        params: RunParams,
     ) -> AsyncGenerator[Message, None]:
         self._trace_id = str(uuid4())
         step = 0
-        meta = {"provider": model_cfg.provider, "model": model_cfg.model}
+        meta = {"provider": self.cfg.provider, "model": self.cfg.model}
         log_file = self.output_dir / f"rollout-{datetime.now(timezone.utc).date().isoformat()}-{self.session_id}.jsonl"
         async with aiofiles.open(log_file, "a") as f:
             await self._write_row(
                 f,
                 step,
                 "req",
-                [m.model_dump() for m in messages],
+                [m.model_dump() for m in params.messages],
                 meta,
             )
             step += 1
             try:
-                async for msg in self._wrapped.run(messages, model_cfg, tools=tools):
+                async for msg in self._wrapped.run(params):
                     direction = "delta" if msg.kind == "tool_use" else "res"
                     await self._write_row(f, step, direction, msg.model_dump(), meta)
                     step += 1
@@ -121,7 +118,9 @@ class ReplayEngine:
                     model = meta.get("model", "")
                     client = self._get_client(provider)
                     cfg = ModelConfig(provider=provider, model=model)
-                    async for m in client.run(msgs, cfg):
+                    client.cfg = cfg  # update static config if different
+                    params = RunParams(messages=msgs)
+                    async for m in client.run(params):
                         yield m
                 elif direction in ("delta", "res", "tool_result"):
                     yield Message(**row["payload"])

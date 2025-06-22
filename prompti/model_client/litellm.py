@@ -10,7 +10,7 @@ from typing import Any
 import litellm
 
 from ..message import Message
-from .base import ModelClient, ModelConfig
+from .base import ModelClient, RunParams
 
 
 class LiteLLMClient(ModelClient):
@@ -22,14 +22,12 @@ class LiteLLMClient(ModelClient):
 
     async def _run(  # noqa: C901
         self,
-        messages: list[Message],
-        model_cfg: ModelConfig,
-        tools: list[dict[str, Any]] | None = None,
+        p: RunParams,
     ) -> AsyncGenerator[Message, None]:
         """Translate A2A messages and execute via :func:`litellm.acompletion`."""
 
         oa_messages: list[dict[str, Any]] = []
-        for m in messages:
+        for m in p.messages:
             role = m.role
             if m.kind == "tool_result":
                 role = "tool"
@@ -60,12 +58,16 @@ class LiteLLMClient(ModelClient):
 
             oa_messages.append(msg)
 
-        params = dict(model_cfg.parameters)
-        api_key = os.environ.get(self.api_key_var)
-        base_url = os.environ.get(self.endpoint_var)
+        params = dict(p.extra_params)
+        if p.temperature is not None:
+            params["temperature"] = p.temperature
+        if p.max_tokens is not None:
+            params["max_tokens"] = p.max_tokens
+        api_key = os.environ.get(self.api_key_var) or self.cfg.api_key
+        base_url = os.environ.get(self.endpoint_var) or self.cfg.api_base
 
         response = await litellm.acompletion(
-            model=model_cfg.model,
+            model=self.cfg.model,
             messages=oa_messages,
             api_key=api_key,
             base_url=base_url,
@@ -126,3 +128,4 @@ class LiteLLMClient(ModelClient):
                 yield Message(role="assistant", kind="error", content="Could not extract content from response")
         except Exception as e:
             yield Message(role="assistant", kind="error", content=f"Error processing response: {str(e)}")
+
