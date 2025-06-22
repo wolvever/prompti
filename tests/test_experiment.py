@@ -55,14 +55,14 @@ async def test_engine_sdk_split(tmp_path):
     class MockClient(ModelClient):
         provider = "mock"
 
-        def __init__(self):
-            super().__init__(client=httpx.AsyncClient(http2=False))
+        def __init__(self, cfg: ModelConfig):
+            super().__init__(cfg, client=httpx.AsyncClient(http2=False))
 
-        async def _run(self, messages, model_cfg, tools=None):
+        async def _run(self, params):
             yield Message(role="assistant", kind="text", content="ok")
 
-    mock_client = MockClient()
     cfg = ModelConfig(provider="mock", model="x")
+    mock_client = MockClient(cfg)
     msgs = engine.run(
         "support_reply",
         {"name": "Bob", "issue": "none"},

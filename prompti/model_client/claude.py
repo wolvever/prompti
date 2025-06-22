@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 
 from ..message import Message
-from .base import ModelClient, ModelConfig
+from .base import ModelClient, ModelConfig, RunParams, ToolChoice, ToolParams, ToolSpec
 
 
 class ClaudeClient(ModelClient):
@@ -23,6 +23,7 @@ class ClaudeClient(ModelClient):
 
     def __init__(
         self,
+        cfg: ModelConfig,
         client: httpx.AsyncClient | None = None,
         *,
         api_url: str | None = None,
@@ -31,28 +32,26 @@ class ClaudeClient(ModelClient):
         **kwargs: Any,
     ) -> None:
         """Initialize the Claude client allowing API overrides."""
-        super().__init__(client=client, **kwargs)
+        super().__init__(cfg, client, **kwargs)
         if api_url is not None:
             self.api_url = api_url
         if api_key_var is not None:
             self.api_key_var = api_key_var
         if api_key is not None:
-            self.api_key = api_key
+            self.cfg.api_key = api_key
 
     async def _run(  # noqa: C901
         self,
-        messages: list[Message],
-        model_cfg: ModelConfig,
-        tools: list[dict[str, Any]] | None = None,
+        p: RunParams,
     ) -> AsyncGenerator[Message, None]:
         """Translate A2A messages to Claude blocks and stream the response."""
 
         url = self.api_url
-        api_key = self.api_key or model_cfg.api_key or os.environ.get(self.api_key_var, "")
+        api_key = self.cfg.api_key or os.environ.get(self.api_key_var, "")
         headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
 
         claude_msgs: list[dict[str, Any]] = []
-        for m in messages:
+        for m in p.messages:
             blocks: list[dict[str, Any]] = []
             if m.kind == "text":
                 blocks.append({"type": "text", "text": m.content})
@@ -81,10 +80,44 @@ class ClaudeClient(ModelClient):
             if blocks:
                 claude_msgs.append({"role": m.role, "content": blocks})
 
-        payload: dict[str, Any] = {"model": model_cfg.model, "messages": claude_msgs}
-        payload.update(model_cfg.parameters)
-        if tools is not None:
-            payload["tools"] = tools
+        payload: dict[str, Any] = {"model": self.cfg.model, "messages": claude_msgs}
+
+        for key in ("temperature", "top_p", "top_k", "max_tokens"):
+            value = getattr(p, key)
+            if value is not None:
+                payload[key] = value
+        if p.stream is False:
+            payload["stream"] = False
+        if p.stop:
+            payload["stop_sequences"] = p.stop if isinstance(p.stop, list) else [p.stop]
+
+        if p.tool_params:
+            if isinstance(p.tool_params, ToolParams):
+                payload["tools"] = [
+                    {
+                        "name": spec.name,
+                        "description": spec.description,
+                        "input_schema": spec.parameters,
+                    }
+                    if isinstance(spec, ToolSpec)
+                    else spec
+                    for spec in p.tool_params.tools
+                ]
+                if p.tool_params.choice == ToolChoice.REQUIRED:
+                    payload["tool_choice"] = {"type": "any"}
+            else:
+                payload["tools"] = [
+                    {
+                        "name": spec.name,
+                        "description": spec.description,
+                        "input_schema": spec.parameters,
+                    }
+                    if isinstance(spec, ToolSpec)
+                    else spec
+                    for spec in p.tool_params
+                ]
+
+        payload.update(p.extra_params)
         resp = await self._client.post(url, json=payload, headers=headers)
         if resp.status_code != 200:
             yield Message(role="assistant", kind="error", content=resp.text)
@@ -111,3 +144,4 @@ class ClaudeClient(ModelClient):
                 )
             elif blk.get("type") == "text":
                 yield Message(role="assistant", kind="text", content=blk.get("text", ""))
+

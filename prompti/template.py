@@ -11,7 +11,13 @@ from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel, PrivateAttr
 
 from .message import Kind, Message
-from .model_client import ModelClient, ModelConfig
+from .model_client import (
+    ModelClient,
+    ModelConfig,
+    RunParams,
+    ToolParams,
+    ToolSpec,
+)
 
 _env = SandboxedEnvironment(undefined=StrictUndefined)
 
@@ -65,9 +71,11 @@ class PromptTemplate(BaseModel):
         model_cfg: ModelConfig,
         client: ModelClient,
         *,
-        tools: list[dict[str, Any]] | None = None,
+        tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None,
+        **run_params: Any,
     ) -> AsyncGenerator[Message, None]:
         """Stream results from executing the template via ``client``."""
         messages = self.format(variables, tag)
-        async for m in client.run(messages, model_cfg=model_cfg, tools=tools):
+        params = RunParams(messages=messages, tool_params=tool_params, **run_params)
+        async for m in client.run(params):
             yield m

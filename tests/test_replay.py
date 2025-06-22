@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from prompti.model_client import Message, ModelConfig, OpenAIClient
+from prompti.model_client import Message, ModelConfig, OpenAIClient, RunParams
 from prompti.replay import ModelClientRecorder, ReplayEngine
 
 
@@ -16,16 +16,16 @@ async def test_record_and_replay(tmp_path):
     mock_client.provider = "openai"
     mock_client._client = MagicMock()  # Add the _client attribute that ModelClientRecorder expects
 
-    async def mock_run(messages, cfg, tools=None):
+    async def mock_run(params):
         yield Message(role="assistant", kind="text", content="pong")
 
     mock_client.run = mock_run
     mock_client._run = mock_run
 
+    mock_client.cfg = ModelConfig(provider="openai", model="gpt-4o")
     recorder = ModelClientRecorder(mock_client, "sess", output_dir=tmp_path)
-    cfg = ModelConfig(provider="openai", model="gpt-4o")
-    msgs = [Message(role="user", kind="text", content="ping")]
-    result = [m async for m in recorder.run(msgs, cfg)]
+    params = RunParams(messages=[Message(role="user", kind="text", content="ping")])
+    result = [m async for m in recorder.run(params)]
     assert result[0].content == "pong"
 
     log_file = next(tmp_path.iterdir())
@@ -38,7 +38,7 @@ async def test_record_and_replay(tmp_path):
         mock_factory_client.provider = provider
         mock_factory_client._client = MagicMock()
 
-        async def mock_factory_run(messages, cfg, tools=None):
+        async def mock_factory_run(params):
             yield Message(role="assistant", kind="text", content="pong")
 
         mock_factory_client.run = mock_factory_run

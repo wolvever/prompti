@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from .experiment import ExperimentRegistry, bucket
 from .loader import FileSystemLoader, HTTPLoader, MemoryLoader
 from .message import Message
-from .model_client import ModelClient, ModelConfig
+from .model_client import ModelClient, ModelConfig, ToolParams, ToolSpec
 from .template import PromptTemplate
 
 _tracer = trace.get_tracer(__name__)
@@ -59,7 +59,8 @@ class PromptEngine:
         headers: dict[str, str] | None = None,
         registry: ExperimentRegistry | None = None,
         user_id: str = "anon",
-        tools: list[dict[str, Any]] | None = None,
+        tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None,
+        **run_params: Any,
     ) -> AsyncGenerator[Message, None]:
         """Stream messages produced by running the template via ``client``."""
         tmpl = await self._resolve(template_name, tags)
@@ -96,7 +97,8 @@ class PromptEngine:
                 tag,
                 model_cfg,
                 client=client,
-                tools=tools,
+                tool_params=tool_params,
+                **run_params,
             ):
                 yield msg
 

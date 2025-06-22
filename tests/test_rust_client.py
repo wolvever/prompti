@@ -9,7 +9,7 @@ import pytest
 from mock_server import MockServer
 
 from prompti.message import Message
-from prompti.model_client import OpenAIClient, RustModelClient
+from prompti.model_client import OpenAIClient, RunParams, RustModelClient
 from prompti.model_client.base import ModelConfig
 
 
@@ -24,14 +24,14 @@ def rust_client():
     """Create a Rust model client for testing using the native wrapper."""
     with patch("prompti.model_client.rust.rs_client.ModelClient") as mock_cls:
         mock_cls.return_value = AsyncMock()
-        return RustModelClient()
+        return RustModelClient(ModelConfig(provider="openai", model="gpt-3.5-turbo"))
 
 
 def test_rust_client_initialization():
     """Test that the Rust client can be initialized."""
     with patch("prompti.model_client.rust.rs_client.ModelClient") as mock_cls:
         mock_cls.return_value = AsyncMock()
-        client = RustModelClient()
+        client = RustModelClient(ModelConfig(provider="openai", model="gpt-3.5-turbo"))
         assert client.provider == "rust"
         assert hasattr(client, "_rs_client")
 
@@ -45,13 +45,14 @@ async def test_rust_client_with_openai_fallback():
         os.environ["OPENAI_API_KEY"] = "testkey"
 
         # Test the actual OpenAI client that the Rust client might fall back to
-        openai_client = OpenAIClient(client=httpx.AsyncClient(), api_url=url)
+        cfg = ModelConfig(provider="openai", model="gpt-3.5-turbo")
+        openai_client = OpenAIClient(cfg, client=httpx.AsyncClient(), api_url=url)
 
         messages = [Message(role="user", content="hello", kind="text")]
-        model_cfg = ModelConfig(api_key="test-key", provider="openai", model="gpt-3.5-turbo")
+        openai_client.cfg = ModelConfig(api_key="test-key", provider="openai", model="gpt-3.5-turbo")
 
         results = []
-        async for msg in openai_client._run(messages, model_cfg):
+        async for msg in openai_client._run(RunParams(messages=messages)):
             results.append(msg)
 
         assert len(results) >= 1
@@ -68,13 +69,13 @@ async def test_rust_client_run():
 
     mock_instance = DummyClient()
     with patch("prompti.model_client.rust.rs_client.ModelClient", return_value=mock_instance):
-        client = RustModelClient()
+        client = RustModelClient(ModelConfig(provider="openai", model="gpt-3.5-turbo"))
 
         messages = [Message(role="user", content="Hello", kind="text")]
-        model_cfg = ModelConfig(api_key="test-key", provider="openai", model="gpt-3.5-turbo")
+        client.cfg = ModelConfig(api_key="test-key", provider="openai", model="gpt-3.5-turbo")
 
         results = []
-        async for msg in client._run(messages, model_cfg):
+        async for msg in client._run(RunParams(messages=messages)):
             results.append(msg)
 
         assert len(results) == 2
@@ -92,11 +93,11 @@ async def test_rust_client_run_error():
 
     mock_instance = DummyClient()
     with patch("prompti.model_client.rust.rs_client.ModelClient", return_value=mock_instance):
-        client = RustModelClient()
+        client = RustModelClient(ModelConfig(provider="openai", model="gpt-3.5-turbo"))
         messages = [Message(role="user", content="Hello", kind="text")]
-        model_cfg = ModelConfig(api_key="test-key", provider="openai", model="gpt-3.5-turbo")
+        client.cfg = ModelConfig(api_key="test-key", provider="openai", model="gpt-3.5-turbo")
         with pytest.raises(RuntimeError, match="Rust client failed"):
-            async for _ in client._run(messages, model_cfg):
+            async for _ in client._run(RunParams(messages=messages)):
                 pass
 
 
@@ -121,13 +122,12 @@ async def test_rust_client_tools_support():
     }
 
     with patch("prompti.model_client.rust.rs_client.ModelClient", return_value=DummyClient()):
-        client = RustModelClient()
+        client = RustModelClient(ModelConfig(provider="openai", model="gpt-3.5-turbo"))
 
         messages = [Message(role="user", content="What time?", kind="text")]
-        cfg = ModelConfig(api_key="k", provider="openai", model="gpt-3.5-turbo")
-        cfg.parameters = {"tool_choice": "auto"}
-
-        results = [m async for m in client._run(messages, cfg, tools=[tool])]
+        client.cfg = ModelConfig(api_key="k", provider="openai", model="gpt-3.5-turbo")
+        params = RunParams(messages=messages, tool_params=[tool], extra_params={"tool_choice": "auto"})
+        results = [m async for m in client._run(params)]
 
         assert captured.get("tools") == [tool]
         assert captured.get("tool_choice") == "auto"

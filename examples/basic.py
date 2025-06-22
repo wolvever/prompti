@@ -3,7 +3,7 @@
 import asyncio
 
 from prompti.engine import PromptEngine, Setting
-from prompti.model_client import ModelConfig, OpenAIClient
+from prompti.model_client import ModelConfig, create_client
 
 
 async def main():
@@ -11,7 +11,7 @@ async def main():
     settings = Setting(template_paths=["./prompts"])
     engine = PromptEngine.from_setting(settings)
     model_cfg = ModelConfig(provider="openai", model="gpt-4o")
-    client = OpenAIClient()
+    client = create_client(model_cfg)
     async for msg in engine.run(
         "support_reply",
         {"name": "Ada", "issue": "login failed"},

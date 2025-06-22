@@ -27,7 +27,7 @@ provider‑specific protocols.
    ```
 
    This will render `prompts/support_reply.yaml` and invoke the
-   `OpenAIClient`, printing messages to the console.
+   OpenAI model via `create_client`, printing messages to the console.
 
 Supported providers include **OpenAI**, **Claude (Anthropic)**, **OpenRouter**,
 **LiteLLM**, and a **Rust**-based client for custom integrations.  Each provider
@@ -143,19 +143,20 @@ print(tmpl.format({"tasks": tasks})[0].content)
 import asyncio
 from prompti.engine import PromptEngine, Setting
 from prompti.experiment import GrowthBookRegistry
-from prompti.model_client import ModelConfig, OpenAIClient
+from prompti.model_client import ModelConfig, create_client
 
 features = {"support_reply": {"id": "clarify", "variants": {"A": 1.0}}}
 reg = GrowthBookRegistry(features)
 
 async def main():
     engine = PromptEngine.from_setting(Setting(template_paths=["./prompts"]))
+    cfg = ModelConfig(provider="openai", model="gpt-4o")
     async for msg in engine.run(
         "support_reply",
         {"name": "Ada", "issue": "login failed"},
         None,
-        model_cfg=ModelConfig(provider="openai", model="gpt-4o"),
-        client=OpenAIClient(),
+        model_cfg=cfg,
+        client=create_client(cfg),
         registry=reg,
     ):
         print(msg.content)
