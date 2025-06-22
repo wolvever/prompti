@@ -64,6 +64,39 @@ interface with built-in **Unleash** and **GrowthBook** adapters.
 
 See `DESIGN.md` for a more detailed description of the architecture.
 
+## 🔌 Template Loaders
+
+Prompti can read prompt templates from multiple back-ends. In addition to local
+files, you can load templates from PromptLayer, Langfuse, Pezzo, Agenta, GitHub
+repositories, or a local Git repo. Each loader exposes the same async call
+contract:
+
+```python
+version, tmpl = await loader("my_prompt", label="prod")
+```
+
+To wire them up:
+
+```python
+from prompti.loader import (
+    PromptLayerLoader,
+    LangfuseLoader,
+    PezzoLoader,
+    AgentaLoader,
+    GitHubRepoLoader,
+    LocalGitRepoLoader,
+)
+
+loaders = {
+    "promptlayer": PromptLayerLoader(api_key="pl-key"),
+    "langfuse": LangfuseLoader(public_key="pk", secret_key="sk"),
+    "pezzo": PezzoLoader(project="my-project"),
+    "agenta": AgentaLoader(app_slug="my-app"),
+    "github": GitHubRepoLoader(repo="org/repo"),
+    "git": LocalGitRepoLoader(Path("/opt/prompts")),
+}
+```
+
 ## 💬 A2A Message Format
 
 Messages consist of an array of parts. The three common part shapes are:
