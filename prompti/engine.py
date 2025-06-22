@@ -110,6 +110,8 @@ class PromptEngine:
             loaders.append(HTTPLoader(setting.registry_url))
         if setting.memory_templates:
             loaders.append(MemoryLoader(setting.memory_templates))
+        if setting.config_loader:
+            loaders.append(setting.config_loader)
         return cls(loaders, cache_ttl=setting.cache_ttl)
 
 
@@ -120,3 +122,4 @@ class Setting(BaseModel):
     cache_ttl: int = 300
     registry_url: str | None = None
     memory_templates: dict[str, dict[str, str]] | None = None
+    config_loader: TemplateLoader | None = None
