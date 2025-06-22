@@ -66,6 +66,7 @@ class LiteLLMClient(ModelClient):
         api_key = os.environ.get(self.api_key_var) or self.cfg.api_key
         base_url = os.environ.get(self.endpoint_var) or self.cfg.api_base
 
+
         response = await litellm.acompletion(
             model=self.cfg.model,
             messages=oa_messages,
