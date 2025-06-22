@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from enum import Enum
+from time import perf_counter
 from typing import Any
 
 import httpx
 from opentelemetry import trace
+from opentelemetry.baggage import set_baggage
 from prometheus_client import Counter, Gauge, Histogram
-from time import perf_counter
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
@@ -74,6 +75,8 @@ class RunParams(BaseModel):
 
     # misc
     user_id: str | None = None
+    request_id: str | None = None
+    session_id: str | None = None
     extra_params: dict[str, Any] = {}
 
 
@@ -136,11 +139,28 @@ class ModelClient:
         start = perf_counter()
         first = True
         last = start
+        attrs = {
+            "provider": self.cfg.provider,
+            "model": self.cfg.model,
+        }
+
+        if params.request_id:
+            attrs["http.request_id"] = params.request_id
+        if params.session_id:
+            attrs["user.session_id"] = params.session_id
+        if params.user_id:
+            attrs["user.id"] = params.user_id
+
+        for key, val in (
+            ("request_id", params.request_id),
+            ("session_id", params.session_id),
+            ("user_id", params.user_id),
+        ):
+            if val:
+                set_baggage(key, val)
+
         with (
-            self._tracer.start_as_current_span(
-                "llm.call",
-                attributes={"provider": self.cfg.provider, "model": self.cfg.model},
-            ),
+            self._tracer.start_as_current_span("llm.call", attributes=attrs),
             self._histogram.labels(self.cfg.provider).time(),
         ):
             try:
