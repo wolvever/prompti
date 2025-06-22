@@ -34,9 +34,9 @@ class PromptEngine:
         """Initialize the engine with a list of loaders."""
         self._loaders = loaders
         self._cache_ttl = cache_ttl
-        self._resolve = alru_cache(maxsize=128, ttl=cache_ttl)(self._resolve)
+        self._resolve = alru_cache(maxsize=128, ttl=cache_ttl)(self._resolve_impl)
 
-    async def _resolve(self, name: str, label: str | None) -> PromptTemplate:
+    async def _resolve_impl(self, name: str, label: str | None) -> PromptTemplate:
         for loader in self._loaders:
             version, tmpl = await loader(name, label)
             if tmpl:
@@ -105,7 +105,7 @@ class PromptEngine:
     @classmethod
     def from_setting(cls, setting: Setting) -> PromptEngine:
         """Create an engine instance from a :class:`Setting`."""
-        loaders = [FileSystemLoader(Path(p)) for p in setting.template_paths]
+        loaders: list[TemplateLoader] = [FileSystemLoader(Path(p)) for p in setting.template_paths]
         if setting.registry_url:
             loaders.append(HTTPLoader(setting.registry_url))
         if setting.memory_templates:
