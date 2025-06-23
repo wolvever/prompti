@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncGenerator
 from enum import Enum
 from time import perf_counter
@@ -13,8 +14,6 @@ from opentelemetry.baggage import set_baggage
 from prometheus_client import Counter, Gauge, Histogram
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
-
-import logging
 
 from ..message import Message
 
