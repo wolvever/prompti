@@ -1,24 +1,28 @@
-import os
-import json
+"""
+python -m prompti.examples.chat_cli -q "What is the weather in Tokyo?"
+"""
+
 import argparse
 import asyncio
 import base64
+import json
 import logging
 import mimetypes
+import os
 from datetime import datetime
 
-from prometheus_client import start_http_server
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from prometheus_client import start_http_server
 
 from prompti.model_client import (
+    Message,
     ModelConfig,
     RunParams,
     ToolParams,
     ToolSpec,
     create_client,
-    Message,
 )
 
 
@@ -133,12 +137,6 @@ async def main() -> None:
         stream=stream,
         extra_params=extra_params,
     )
-    logging.info("=== Request ===")
-    request_info = {
-        "model_config": cfg.model_dump(),
-        "run_params": params.model_dump(),
-    }
-    logging.info(json.dumps(request_info, indent=2))
 
     while True:
         logging.info("=== Response ===")

@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from typing import Any
 from time import perf_counter
-
-from prometheus_client import Histogram
+from typing import Any
 
 import yaml
 from jinja2 import StrictUndefined
 from jinja2.sandbox import SandboxedEnvironment
+from prometheus_client import Histogram
 from pydantic import BaseModel, PrivateAttr
 
 from .message import Kind, Message
