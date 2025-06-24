@@ -1,4 +1,4 @@
-"""Example demonstrating PromptI with the OpenAI client."""
+"""Example demonstrating PromptI with the LiteLLM client."""
 
 import asyncio
 import logging
@@ -11,7 +11,7 @@ from prompti.model_client import ModelConfig, create_client
 
 
 async def main():
-    """Run a simple support-reply prompt via OpenAI and print the results."""
+    """Run a simple support-reply prompt via LiteLLM and print the results."""
 
     # Configure logging to write to console
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -26,10 +26,10 @@ async def main():
     settings = Setting(template_paths=["./prompts"])
     engine = PromptEngine.from_setting(settings)
     model_cfg = ModelConfig(
-        provider="openai",
-        model=os.getenv("MODEL_NAME", "claude-3-7-sonnet-20250219"),
-        api_key=os.getenv("OPENAI_API_KEY"),
-        api_url=os.getenv("OPENAI_API_URL"),
+        provider="litellm",
+        model=os.getenv("MODEL_NAME", "gpt-3.5-turbo"),
+        api_key=os.getenv("LITELLM_API_KEY"),
+        api_url=os.getenv("LITELLM_ENDPOINT"),
     )
     client = create_client(model_cfg, is_debug=True)
     async for msg in engine.run(

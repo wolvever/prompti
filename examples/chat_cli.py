@@ -94,7 +94,7 @@ async def main() -> None:
     )
     parser.add_argument(
         "--provider",
-        default=os.environ.get("PROMPTI_PROVIDER", "openai"),
+        default=os.environ.get("PROMPTI_PROVIDER", "litellm"),
         help="Model provider (default from PROMPTI_PROVIDER)",
     )
     args = parser.parse_args()

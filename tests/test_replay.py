@@ -5,15 +5,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from prompti.model_client import Message, ModelConfig, OpenAIClient, RunParams
+from prompti.model_client import Message, ModelConfig, LiteLLMClient, RunParams
 from prompti.replay import ModelClientRecorder, ReplayEngine
 
 
 @pytest.mark.asyncio
 async def test_record_and_replay(tmp_path):
-    # Create a mock OpenAI client that returns a fixed response
-    mock_client = AsyncMock(spec=OpenAIClient)
-    mock_client.provider = "openai"
+    # Create a mock LiteLLM client that returns a fixed response
+    mock_client = AsyncMock(spec=LiteLLMClient)
+    mock_client.provider = "litellm"
     mock_client._client = MagicMock()  # Add the _client attribute that ModelClientRecorder expects
 
     async def mock_run(params):
@@ -22,7 +22,7 @@ async def test_record_and_replay(tmp_path):
     mock_client.run = mock_run
     mock_client._run = mock_run
 
-    mock_client.cfg = ModelConfig(provider="openai", model="gpt-4o")
+    mock_client.cfg = ModelConfig(provider="litellm", model="gpt-4o")
     recorder = ModelClientRecorder(mock_client, "sess", output_dir=tmp_path)
     params = RunParams(messages=[Message(role="user", kind="text", content="ping")])
     result = [m async for m in recorder.run(params)]
@@ -34,7 +34,7 @@ async def test_record_and_replay(tmp_path):
     assert rows[1]["direction"] == "res"
 
     def factory(provider: str):
-        mock_factory_client = AsyncMock(spec=OpenAIClient)
+        mock_factory_client = AsyncMock(spec=LiteLLMClient)
         mock_factory_client.provider = provider
         mock_factory_client._client = MagicMock()
 

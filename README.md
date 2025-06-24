@@ -13,7 +13,7 @@ provider‑specific protocols.
 
 ## 🌟 Key Features
 
-- **🔄 Provider Agnostic**: Unified interface for OpenAI, Claude, OpenRouter, LiteLLM, and custom providers
+- **🔄 Provider Agnostic**: Unified interface for LiteLLM, Rust-based clients, and custom providers
 - **📝 Jinja2 Templates**: First-class support for dynamic prompt templating with loops, filters, and safe sandboxing
 - **⚡ Async First**: Full asynchronous workflow with cloud-native observability (OpenTelemetry, Prometheus)
 - **🎯 A2A Message Format**: Standardized Agent-to-Agent communication with support for text, files, data, and tool interactions
@@ -42,12 +42,11 @@ provider‑specific protocols.
    ```
 
    This will render `prompts/support_reply.yaml` and invoke the
-   OpenAI model via `create_client`, printing messages to the console.
+   model via LiteLLM using `create_client`, printing messages to the console.
 
-Supported providers include **OpenAI**, **Claude (Anthropic)**, **OpenRouter**,
-**LiteLLM**.  Each provider has its own `ModelClient` subclass (e.g. `OpenAIClient`).  
-Set the relevant API key environment variables such as `OPENAI_API_KEY` before 
-running examples.  The Rust client is compiled as a Python extension and accessed 
+Supported providers are **LiteLLM** and a native **Rust client**.  Set the
+appropriate environment variables such as `LITELLM_API_KEY` before running the
+examples.  The Rust client is compiled as a Python extension and accessed
 through a thin wrapper rather than spawning a subprocess.
 
 4. **Send an ad-hoc query via the CLI**:
@@ -69,10 +68,8 @@ through a thin wrapper rather than spawning a subprocess.
 
 | Provider | Environment Variables | Notes |
 |----------|----------------------|-------|
-| **OpenAI** | `OPENAI_API_KEY`, `OPENAI_API_BASE` | Chat completions API |
-| **Claude** | `ANTHROPIC_API_KEY` | Supports thinking, tools, images |
 | **LiteLLM** | `LITELLM_API_KEY`, `LITELLM_ENDPOINT` | Universal LLM gateway |
-| **Rust Client** | Via `ModelConfig.api_key` | High-performance native client (source code from OpenAI Codex CLI) |
+| **Rust Client** | Via `ModelConfig.api_key` | High-performance native client |
 
 Prompti also supports SDK-level A/B experiments via the `ExperimentRegistry`
 interface with built-in **Unleash** and **GrowthBook** adapters.
@@ -134,7 +131,7 @@ template = PromptTemplate(
     id="hello",
     name="hello",
     version="1.0",
-    model_cfg=ModelConfig(provider="openai", model="gpt-4o"),
+    model_cfg=ModelConfig(provider="litellm", model="gpt-4o"),
     yaml="""
 messages:
   - role: user
@@ -214,7 +211,7 @@ reg = GrowthBookRegistry(features)
 
 async def main():
     engine = PromptEngine.from_setting(Setting(template_paths=["./prompts"]))
-    cfg = ModelConfig(provider="openai", model="gpt-4o")
+    cfg = ModelConfig(provider="litellm", model="gpt-4o")
     async for msg in engine.run(
         "support_reply",
         {"name": "Ada", "issue": "login failed"},
