@@ -79,7 +79,6 @@ class ModelClient:
 #### 3.4 内置客户端
 
 * **LiteLLMClient** — 通过 `litellm.acompletion` 统一不同供应商接口，依赖 `LITELLM_API_KEY` / `LITELLM_ENDPOINT`。
-* **RustModelClient** — 基于 `model_client_rs` 原生库的 Python 包装器，直接调用 Rust 代码，无需额外子进程，`api_key` 从 `ModelConfig` 传入。
 
 ---
 
