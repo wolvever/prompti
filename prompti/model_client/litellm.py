@@ -9,7 +9,7 @@ import httpx
 import litellm
 
 from ..message import Message
-from .base import ModelClient, ModelConfig, RunParams
+from .base import ModelClient, ModelConfig, RunParams, ToolChoice, ToolParams, ToolSpec
 
 
 class LiteLLMClient(ModelClient):
@@ -30,37 +30,56 @@ class LiteLLMClient(ModelClient):
     ) -> AsyncGenerator[Message, None]:
         """Translate A2A messages and execute via :func:`litellm.acompletion`."""
 
+        is_claude = self.cfg.model.startswith("claude")
         oa_messages: list[dict[str, Any]] = []
+        claude_msgs: list[dict[str, Any]] = []
+
         for m in p.messages:
             role = m.role
             if m.kind == "tool_result":
                 role = "tool"
 
-            msg: dict[str, Any] = {"role": role}
+            if is_claude:
+                blocks: list[dict[str, Any]] = []
+                if m.kind == "text":
+                    blocks.append({"type": "text", "text": m.content})
+                elif m.kind == "thinking":
+                    blocks.append({"type": "thinking", "thinking": m.content})
+                elif m.kind in ("image", "image_url"):
+                    blocks.append({"type": "image", "source": {"type": "url", "url": m.content}})
+                elif m.kind == "tool_use":
+                    data = m.content if isinstance(m.content, dict) else json.loads(m.content)
+                    blocks.append({"type": "tool_use", "id": data.get("call_id"), "name": data.get("name"), "input": data.get("arguments", {})})
+                elif m.kind == "tool_result":
+                    blocks.append({"type": "tool_result", "content": m.content})
 
-            if m.kind in {"text", "thinking"}:
-                msg["content"] = m.content
-            elif m.kind == "image_url":
-                msg["content"] = [{"type": "image_url", "image_url": {"url": m.content}}]
-            elif m.kind == "tool_use":
-                data = m.content if isinstance(m.content, dict) else json.loads(m.content)
-                msg["content"] = None
-                msg["tool_calls"] = [
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": data.get("name"),
-                            "arguments": json.dumps(data.get("arguments", {})),
-                        },
-                    }
-                ]
-            elif m.kind == "tool_result":
-                msg["content"] = json.dumps(m.content) if not isinstance(m.content, str) else m.content
+                if blocks:
+                    claude_msgs.append({"role": role, "content": blocks})
             else:
-                # drop unsupported kinds from request
-                continue
+                msg: dict[str, Any] = {"role": role}
 
-            oa_messages.append(msg)
+                if m.kind in {"text", "thinking"}:
+                    msg["content"] = m.content
+                elif m.kind == "image_url":
+                    msg["content"] = [{"type": "image_url", "image_url": {"url": m.content}}]
+                elif m.kind == "tool_use":
+                    data = m.content if isinstance(m.content, dict) else json.loads(m.content)
+                    msg["content"] = None
+                    msg["tool_calls"] = [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": data.get("name"),
+                                "arguments": json.dumps(data.get("arguments", {})),
+                            },
+                        }
+                    ]
+                elif m.kind == "tool_result":
+                    msg["content"] = json.dumps(m.content) if not isinstance(m.content, str) else m.content
+                else:
+                    continue
+
+                oa_messages.append(msg)
 
         params = dict(p.extra_params)
         if p.temperature is not None:
@@ -68,11 +87,58 @@ class LiteLLMClient(ModelClient):
         if p.max_tokens is not None:
             params["max_tokens"] = p.max_tokens
 
+        if is_claude:
+            if p.tool_params:
+                if isinstance(p.tool_params, ToolParams):
+                    params["tools"] = [
+                        {
+                            "name": t.name,
+                            "description": t.description,
+                            "input_schema": t.parameters,
+                        }
+                        if isinstance(t, ToolSpec)
+                        else t
+                        for t in p.tool_params.tools
+                    ]
+                    if p.tool_params.choice == ToolChoice.REQUIRED:
+                        params["tool_choice"] = {"type": "any"}
+                else:
+                    params["tools"] = [
+                        {
+                            "name": t.name,
+                            "description": t.description,
+                            "input_schema": t.parameters,
+                        }
+                        if isinstance(t, ToolSpec)
+                        else t
+                        for t in p.tool_params
+                    ]
+        else:
+            if p.tool_params:
+                if isinstance(p.tool_params, ToolParams):
+                    tools = [
+                        {"type": "function", "function": t.model_dump()} if isinstance(t, ToolSpec) else t
+                        for t in p.tool_params.tools
+                    ]
+                    params["tools"] = tools
+                    choice = p.tool_params.choice
+                    if isinstance(choice, ToolChoice):
+                        if choice is not ToolChoice.AUTO:
+                            params["tool_choice"] = choice.value
+                    elif choice is not None:
+                        params["tool_choice"] = choice
+                else:
+                    params["tools"] = [
+                        {"type": "function", "function": t.model_dump()} if isinstance(t, ToolSpec) else t
+                        for t in p.tool_params
+                    ]
+
         params["stream"] = p.stream
 
+        messages_param = claude_msgs if is_claude else oa_messages
         response = await litellm.acompletion(
             model=self.cfg.model,
-            messages=oa_messages,
+            messages=messages_param,
             api_key=self.api_key,
             base_url=self.base_url,
             **params,
@@ -114,6 +180,24 @@ class LiteLLMClient(ModelClient):
             try:
                 # Try to access as dictionary first
                 if isinstance(response, dict):
+                    if is_claude:
+                        blocks = response.get("content", [])
+                        for blk in blocks:
+                            if blk.get("type") == "thinking":
+                                yield Message(role="assistant", kind="thinking", content=blk.get("thinking") or blk.get("text", ""))
+                            elif blk.get("type") == "tool_use":
+                                yield Message(
+                                    role="assistant",
+                                    kind="tool_use",
+                                    content={
+                                        "name": blk.get("name"),
+                                        "arguments": blk.get("input", {}),
+                                        "call_id": blk.get("id"),
+                                    },
+                                )
+                            elif blk.get("type") == "text":
+                                yield Message(role="assistant", kind="text", content=blk.get("text", ""))
+                        return
                     choices = response.get("choices", [])
                     choice = choices[0] if choices else None
                     message_data = choice.get("message", {}) if choice else {}
