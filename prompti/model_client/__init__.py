@@ -9,11 +9,8 @@ from .base import (
     ToolParams,
     ToolSpec,
 )
-from .claude import ClaudeClient
 from .factory import create_client
 from .litellm import LiteLLMClient
-from .openai import OpenAIClient
-from .openrouter import OpenRouterClient
 from .rust import RustModelClient
 
 __all__ = [
@@ -24,10 +21,7 @@ __all__ = [
     "ToolParams",
     "ToolChoice",
     "create_client",
-    "OpenAIClient",
-    "OpenRouterClient",
     "LiteLLMClient",
-    "ClaudeClient",
     "RustModelClient",
     "Message",
 ]

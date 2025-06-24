@@ -20,7 +20,7 @@
 
 | 字段        | 含义                            | 说明                                |
 | --------- | ----------------------------- | --------------------------------- |
-| `role`    | `assistant\|user\|tool`       | 与 OpenAI / Claude 角色对齐            |
+| `role`    | `assistant\|user\|tool`       | 标准 A2A 角色            |
 | `kind`    | `text\|file\|data\|tool_use\|tool_result` | 枚举来自 A2A 规范                       |
 | `content` | 字符串或 JSON                     | `tool_use` 时为 `{name, arguments}` |
 
@@ -70,7 +70,7 @@ class ModelClient:
 
 | 功能          | 方案                                                |
 | ----------- | ------------------------------------------------- |
-| Provider 适配 | OpenAI: `function_call`; Claude: `tool_use` block |
+| Provider 适配 | LiteLLM `acompletion` 接口 |
 | HTTP 传输     | `httpx.AsyncClient(http2=True)`                   |
 | 重试          | Tenacity 指数退避 + 抖动                                |
 | Trace       | OpenTelemetry span                                |
@@ -78,8 +78,6 @@ class ModelClient:
 
 #### 3.4 内置客户端
 
-* **OpenAIClient** — 调用 OpenAI `chat/completions`，使用 `OPENAI_API_KEY`。支持自定义 `api_url` 与 `api_key` 环境变量名称。
-* **ClaudeClient** — 兼容 Anthropic Claude `messages` API，默认读取 `ANTHROPIC_API_KEY`，额外支持 `thinking` 与 `tool_use` 块以及图片消息。
 * **LiteLLMClient** — 通过 `litellm.acompletion` 统一不同供应商接口，依赖 `LITELLM_API_KEY` / `LITELLM_ENDPOINT`。
 * **RustModelClient** — 基于 `model_client_rs` 原生库的 Python 包装器，直接调用 Rust 代码，无需额外子进程，`api_key` 从 `ModelConfig` 传入。
 
@@ -296,8 +294,8 @@ async def render(name: str, label: str, **vars):
 
 1. **确定性复现** — 同一 trace 可在任何时间重放，输出完全一致。
 2. **零侵入录制** — `ModelClientRecorder` 内部封装，无业务改动。
-3. **流式友好** — 捕获 OpenAI SSE / Claude 增量并原样回放。
-4. **跨模型** — 借 §3 转换器，统一录放 OpenAI、Claude、Bedrock。
+3. **流式友好** — 捕获 LiteLLM 增量并原样回放。
+4. **跨模型** — 借 §3 转换器，统一录放多种后端。
 5. **可观测** — Prometheus & OTel 指标与线上对齐。
 
 #### 5.2 数据模型

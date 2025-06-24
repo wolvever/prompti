@@ -15,6 +15,7 @@ from pydantic import BaseModel, PrivateAttr
 from .message import Kind, Message
 from .model_client import (
     ModelClient,
+    ModelConfig,
     RunParams,
     ToolParams,
     ToolSpec,
@@ -86,6 +87,7 @@ class PromptTemplate(BaseModel):
         tag: str | None,
         client: ModelClient,
         *,
+        model_cfg: ModelConfig | None = None,
         tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None,
         **run_params: Any,
     ) -> AsyncGenerator[Message, None]:

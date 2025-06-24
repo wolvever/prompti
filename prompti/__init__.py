@@ -21,17 +21,15 @@ from .loader import (
 )
 from .message import Kind, Message
 from .model_client import (
-    ClaudeClient,
     LiteLLMClient,
     ModelClient,
     ModelConfig,
-    OpenAIClient,
-    OpenRouterClient,
     RunParams,
     ToolChoice,
     ToolParams,
     ToolSpec,
     create_client,
+    RustModelClient,
 )
 from .replay import ModelClientRecorder, ReplayEngine
 from .template import PromptTemplate
@@ -47,10 +45,8 @@ __all__ = [
     "ToolParams",
     "ToolChoice",
     "create_client",
-    "OpenAIClient",
-    "ClaudeClient",
     "LiteLLMClient",
-    "OpenRouterClient",
+    "RustModelClient",
     "ReplayEngine",
     "ModelClientRecorder",
     "ExperimentRegistry",
