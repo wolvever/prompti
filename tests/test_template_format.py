@@ -4,6 +4,8 @@ import pytest
 
 from prompti.loader import FileSystemLoader
 from prompti.template import PromptTemplate
+from prompti.model_client import ModelClient, ModelConfig, RunParams
+from prompti.message import Message
 
 
 @pytest.mark.asyncio
@@ -103,3 +105,30 @@ messages:
     assert "🔥 HIGH: Security patch (Priority: 10)" in content
     assert "📝 NORMAL: Refactor code (Priority: 5)" in content
     assert "Total high-priority tasks: 2" in content
+
+
+@pytest.mark.asyncio
+async def test_template_run_uses_model_cfg():
+    class DummyClient(ModelClient):
+        provider = "dummy"
+
+        async def _run(self, params: RunParams):
+            yield Message(role="assistant", kind="text", content="ok")
+
+    tmpl_cfg = ModelConfig(provider="dummy", model="x")
+    client = DummyClient(ModelConfig(provider="dummy", model="y"))
+    template = PromptTemplate(id="x", name="x", version="1", model_cfg=tmpl_cfg)
+
+    out = [
+        m
+        async for m in template.run(
+            {},
+            None,
+            model_cfg=None,
+            client=client,
+            stream=False,
+        )
+    ]
+
+    assert out[0].content == "ok"
+    assert client.cfg == tmpl_cfg

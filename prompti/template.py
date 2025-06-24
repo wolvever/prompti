@@ -38,12 +38,17 @@ class PromptTemplate(BaseModel):
     labels: list[str] = []
     required_variables: list[str] = []
     yaml: str = ""
+    model_cfg: ModelConfig | None = None
 
     _data: dict[str, Any] = PrivateAttr(default_factory=dict)
 
     def model_post_init(self, _context: Any) -> None:
         """Parse YAML once after model initialization."""
         self._data = yaml.safe_load(self.yaml) if self.yaml else {}
+        if not self.model_cfg:
+            cfg_dict = self._data.get("model_config")
+            if cfg_dict:
+                self.model_cfg = ModelConfig(**cfg_dict)
 
     def format(
         self,
@@ -87,5 +92,10 @@ class PromptTemplate(BaseModel):
         """Stream results from executing the template via ``client``."""
         messages = self.format(variables, tag)
         params = RunParams(messages=messages, tool_params=tool_params, **run_params)
+
+        cfg = model_cfg or self.model_cfg
+        if cfg is not None:
+            client.cfg = cfg
+
         async for m in client.run(params):
             yield m
