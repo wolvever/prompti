@@ -67,7 +67,6 @@ async def test_engine_sdk_split(tmp_path):
         "support_reply",
         {"name": "Bob", "issue": "none"},
         None,
-        model_cfg=cfg,
         client=mock_client,
         registry=reg,
     )

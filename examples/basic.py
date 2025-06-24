@@ -36,7 +36,6 @@ async def main():
         "support_reply",
         {"name": "Ada", "issue": "login failed"},
         tags=None,
-        model_cfg=model_cfg,
         client=client,
         stream=True,
     ):
