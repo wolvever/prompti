@@ -128,11 +128,13 @@ Messages consist of an array of parts. The three common part shapes are:
 
 ```python
 from prompti.template import PromptTemplate
+from prompti.model_client import ModelConfig
 
 template = PromptTemplate(
     id="hello",
     name="hello",
     version="1.0",
+    model_cfg=ModelConfig(provider="openai", model="gpt-4o"),
     yaml="""
 messages:
   - role: user

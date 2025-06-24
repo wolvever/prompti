@@ -53,7 +53,7 @@ class PromptEngine:
         template_name: str,
         variables: dict[str, Any],
         tags: str | None,
-        model_cfg: ModelConfig,
+        model_cfg: ModelConfig | None,
         client: ModelClient,
         *,
         headers: dict[str, str] | None = None,
