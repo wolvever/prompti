@@ -31,7 +31,7 @@ async def main():
         api_key=os.getenv("OPENAI_API_KEY"),
         api_url=os.getenv("OPENAI_API_URL"),
     )
-    client = create_client(model_cfg)
+    client = create_client(model_cfg, is_debug=True)
     async for msg in engine.run(
         "support_reply",
         {"name": "Ada", "issue": "login failed"},
