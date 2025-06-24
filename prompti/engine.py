@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from .experiment import ExperimentRegistry, bucket
 from .loader import FileSystemLoader, HTTPLoader, MemoryLoader
 from .message import Message
-from .model_client import ModelClient, ModelConfig, ToolParams, ToolSpec
+from .model_client import ModelClient, ToolParams, ToolSpec
 from .template import PromptTemplate
 
 _tracer = trace.get_tracer(__name__)
@@ -53,7 +53,6 @@ class PromptEngine:
         template_name: str,
         variables: dict[str, Any],
         tags: str | None,
-        model_cfg: ModelConfig | None,
         client: ModelClient,
         *,
         headers: dict[str, str] | None = None,
@@ -97,7 +96,6 @@ class PromptEngine:
             async for msg in tmpl.run(
                 variables,
                 tag,
-                model_cfg,
                 client=client,
                 tool_params=tool_params,
                 **run_params,

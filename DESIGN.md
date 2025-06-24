@@ -43,7 +43,6 @@ class PromptTemplate(BaseModel):
         self,
         variables: dict,
         tag: str | None,
-        model_cfg: ModelConfig,
         *,
         tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None,
     ) -> AsyncGenerator[Message, None]: ...
@@ -57,7 +56,7 @@ class PromptTemplate(BaseModel):
 ```python
 class PromptEngine:
     async def format(self, name: str, variables: dict, tags: str | None = None) -> list[Message]: ...
-    async def run(self, name: str, variables: dict, tags: str | None, model_cfg: ModelConfig, *, tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None) -> AsyncGenerator[Message, None]: ...
+    async def run(self, name: str, variables: dict, tags: str | None, client: ModelClient, *, tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None) -> AsyncGenerator[Message, None]: ...
 ```
 
 * 多种 `TemplateLoader`（FS / HTTP / Memory）+ `async-lru` TTL 缓存。

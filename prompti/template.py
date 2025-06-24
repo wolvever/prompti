@@ -15,7 +15,6 @@ from pydantic import BaseModel, PrivateAttr
 from .message import Kind, Message
 from .model_client import (
     ModelClient,
-    ModelConfig,
     RunParams,
     ToolParams,
     ToolSpec,
@@ -85,7 +84,6 @@ class PromptTemplate(BaseModel):
         self,
         variables: dict[str, Any],
         tag: str | None,
-        model_cfg: ModelConfig | None,
         client: ModelClient,
         *,
         tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None,

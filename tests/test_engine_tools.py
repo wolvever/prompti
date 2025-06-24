@@ -37,7 +37,6 @@ async def test_engine_with_tools():
                 "support_reply",
                 {"name": "Bob", "issue": "none"},
                 None,
-                model_cfg=cfg,
                 client=client,
                 tool_params=tools,
                 stream=False,
