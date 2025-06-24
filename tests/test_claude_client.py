@@ -18,9 +18,9 @@ from prompti.model_client import (
 async def test_claude_client():
     with MockServer("tests/data/claude_record.jsonl") as url:
         os.environ["ANTHROPIC_API_KEY"] = "testkey"
-        cfg = ModelConfig(provider="claude", model="claude-3-opus-20240229")
-        client = ClaudeClient(cfg, client=httpx.AsyncClient(), api_url=url)
-        params = RunParams(messages=[Message(role="user", kind="text", content="hi")])
+        cfg = ModelConfig(provider="claude", model="claude-3-opus-20240229", api_url=url)
+        client = ClaudeClient(cfg, client=httpx.AsyncClient())
+        params = RunParams(messages=[Message(role="user", kind="text", content="hi")], stream=False)
         out = [m async for m in client.run(params)]
         assert out[0].content.startswith("Hello")
 
@@ -30,7 +30,7 @@ async def test_claude_client():
             description="Get the current time",
             parameters={"type": "object", "properties": {}, "required": []},
         )
-        params = RunParams(messages=messages, tool_params=ToolParams(tools=[tool]))
+        params = RunParams(messages=messages, tool_params=ToolParams(tools=[tool]), stream=False)
         out = [m async for m in client.run(params)]
         assert out[0].kind == "thinking"
         assert out[1].kind == "tool_use"
@@ -49,12 +49,12 @@ async def test_claude_client():
                 content="2024-06-20T12:00:00Z",
             ),
         ]
-        params = RunParams(messages=messages)
+        params = RunParams(messages=messages, stream=False)
         out = [m async for m in client.run(params)]
         assert "12:00" in out[0].content
 
         messages = [Message(role="user", kind="text", content="Think step by step: what is 2+2?")]
-        params = RunParams(messages=messages)
+        params = RunParams(messages=messages, stream=False)
         out = [m async for m in client.run(params)]
         assert "4" in out[0].content
 
@@ -65,7 +65,7 @@ async def test_claude_client():
                 content="https://example.com/photo.png",
             )
         ]
-        params = RunParams(messages=messages)
+        params = RunParams(messages=messages, stream=False)
         out = [m async for m in client.run(params)]
         assert "sunset" in out[0].content.lower()
 
@@ -75,9 +75,9 @@ async def test_claude_client():
 @pytest.mark.asyncio
 async def test_claude_client_init_overrides():
     with MockServer("tests/data/claude_record.jsonl") as url:
-        cfg = ModelConfig(provider="claude", model="claude-3-opus-20240229", api_key="override")
-        client = ClaudeClient(cfg, client=httpx.AsyncClient(), api_url=url)
-        params = RunParams(messages=[Message(role="user", kind="text", content="hi")])
+        cfg = ModelConfig(provider="claude", model="claude-3-opus-20240229", api_key="override", api_url=url)
+        client = ClaudeClient(cfg, client=httpx.AsyncClient())
+        params = RunParams(messages=[Message(role="user", kind="text", content="hi")], stream=False)
         out = [m async for m in client.run(params)]
         assert out[0].content.startswith("Hello")
         await client.close()

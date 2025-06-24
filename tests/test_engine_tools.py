@@ -19,8 +19,8 @@ async def test_engine_with_tools():
     with MockServer("tests/data/openai_record.jsonl") as url:
         os.environ["OPENAI_API_KEY"] = "testkey"
         engine = PromptEngine.from_setting(Setting(template_paths=[Path("./prompts")]))
-        cfg = ModelConfig(provider="openai", model="gpt-3.5-turbo")
-        client = OpenAIClient(cfg, client=httpx.AsyncClient(), api_url=url)
+        cfg = ModelConfig(provider="openai", model="gpt-3.5-turbo", api_url=url)
+        client = OpenAIClient(cfg, client=httpx.AsyncClient())
 
         tools = ToolParams(
             tools=[
@@ -40,6 +40,7 @@ async def test_engine_with_tools():
                 model_cfg=cfg,
                 client=client,
                 tool_params=tools,
+                stream=False,
             )
         ]
         # The mock server should return a response from the recorded data

@@ -22,8 +22,16 @@ class MockServer:
                 length = int(inner_self.headers.get("Content-Length", "0"))
                 data = inner_self.rfile.read(length).decode()
                 payload = json.loads(data) if data else {}
+
+                # Create a copy of the payload without the 'stream' parameter for matching
+                payload_for_matching = {k: v for k, v in payload.items() if k != "stream"}
+
                 for row in self._log:
-                    if row.get("request") == payload:
+                    expected_request = row.get("request", {})
+                    # Also remove 'stream' from expected request if it exists
+                    expected_for_matching = {k: v for k, v in expected_request.items() if k != "stream"}
+
+                    if expected_for_matching == payload_for_matching:
                         resp = row.get("response", {})
                         body = json.dumps(resp).encode()
                         inner_self.send_response(200)

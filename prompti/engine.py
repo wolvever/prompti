@@ -58,7 +58,7 @@ class PromptEngine:
         *,
         headers: dict[str, str] | None = None,
         registry: ExperimentRegistry | None = None,
-        user_id: str = "anon",
+        user_id: str | None = None,
         tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None,
         **run_params: Any,
     ) -> AsyncGenerator[Message, None]:
@@ -70,7 +70,7 @@ class PromptEngine:
         if headers and "x-variant" in headers:
             exp_id = headers.get("x-exp", "") or None
             variant = headers.get("x-variant")
-        elif registry is not None:
+        elif registry is not None and user_id is not None:
             split = await registry.get_split(template_name, user_id)
             exp_id = split.experiment_id
             variant = split.variant or bucket(user_id, split.traffic_split or {})

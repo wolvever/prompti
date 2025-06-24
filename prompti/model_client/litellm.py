@@ -1,24 +1,28 @@
 """LiteLLM client implementation using the `litellm` package."""
 
-from __future__ import annotations
-
 import json
 import os
 from collections.abc import AsyncGenerator
 from typing import Any
 
+import httpx
 import litellm
 
 from ..message import Message
-from .base import ModelClient, RunParams
+from .base import ModelClient, ModelConfig, RunParams
 
 
 class LiteLLMClient(ModelClient):
-    """Client that routes requests through ``litellm``."""
+    """Client for the LiteLLM API."""
 
     provider = "litellm"
-    api_key_var = "LITELLM_API_KEY"
-    endpoint_var = "LITELLM_ENDPOINT"
+
+    def __init__(self, cfg: ModelConfig, client: httpx.AsyncClient | None = None, is_debug: bool = False) -> None:
+        super().__init__(cfg, client, is_debug=is_debug)
+        self.api_url = cfg.api_url
+        self.api_key_var = cfg.api_key_var
+        self.api_key = cfg.api_key or (os.environ.get(self.api_key_var) if self.api_key_var else None)
+        self.base_url = self.api_url
 
     async def _run(  # noqa: C901
         self,
@@ -63,70 +67,100 @@ class LiteLLMClient(ModelClient):
             params["temperature"] = p.temperature
         if p.max_tokens is not None:
             params["max_tokens"] = p.max_tokens
-        api_key = os.environ.get(self.api_key_var) or self.cfg.api_key
-        base_url = os.environ.get(self.endpoint_var) or self.cfg.api_base
 
+        params["stream"] = p.stream
 
         response = await litellm.acompletion(
             model=self.cfg.model,
             messages=oa_messages,
-            api_key=api_key,
-            base_url=base_url,
+            api_key=self.api_key,
+            base_url=self.base_url,
             **params,
         )
 
-        # Handle the response safely
-        try:
-            # Try to access as dictionary first
-            if isinstance(response, dict):
-                choices = response.get("choices", [])
-                choice = choices[0] if choices else None
-                message_data = choice.get("message", {}) if choice else {}
-            else:
-                # Try to access as object
-                choice = response.choices[0] if hasattr(response, "choices") else None  # type: ignore
-                if choice is None:
-                    raise AttributeError("No choices in response")
-                message_data = choice.message if hasattr(choice, "message") else {}  # type: ignore
+        # Handle streaming response
+        if p.stream:
+            try:
+                # LiteLLM returns an async generator for streaming
+                async for chunk in response:
+                    if hasattr(chunk, "choices") and chunk.choices:
+                        choice = chunk.choices[0]
+                        delta = choice.delta if hasattr(choice, "delta") else {}
 
-                # Convert to dict if needed
-                if not isinstance(message_data, dict):
-                    message_data = vars(message_data) if hasattr(message_data, "__dict__") else {}
+                        # Handle content delta
+                        if hasattr(delta, "content") and delta.content:
+                            yield Message(role="assistant", kind="text", content=delta.content)
 
-            # Process tool calls if present
-            if isinstance(message_data, dict) and "tool_calls" in message_data:
-                for call in message_data["tool_calls"]:
-                    if isinstance(call, dict) and "function" in call:
-                        func = call["function"]
-                        yield Message(
-                            role="assistant",
-                            kind="tool_use",
-                            content=json.dumps(
-                                {
-                                    "name": func.get("name"),
-                                    "arguments": json.loads(func.get("arguments", "{}")),
-                                }
-                            ),
-                        )
-            # Process function call if present
-            elif isinstance(message_data, dict) and "function_call" in message_data:
-                func = message_data["function_call"]
-                yield Message(
-                    role="assistant",
-                    kind="tool_use",
-                    content={
-                        "name": func.get("name"),
-                        "arguments": json.loads(func.get("arguments", "{}")),
-                    },
-                )
-            # Process content if present
-            elif isinstance(message_data, dict) and "content" in message_data:
-                content = message_data["content"]
-                if content:
-                    yield Message(role="assistant", kind="text", content=content)
-            else:
-                # Fallback for unexpected response format
-                yield Message(role="assistant", kind="error", content="Could not extract content from response")
-        except Exception as e:
-            yield Message(role="assistant", kind="error", content=f"Error processing response: {str(e)}")
+                        # Handle tool calls delta
+                        if hasattr(delta, "tool_calls") and delta.tool_calls:
+                            for call in delta.tool_calls:
+                                if hasattr(call, "function") and call.function:
+                                    func = call.function
+                                    if hasattr(func, "name") and func.name:
+                                        yield Message(
+                                            role="assistant",
+                                            kind="tool_use",
+                                            content=json.dumps(
+                                                {
+                                                    "name": func.name,
+                                                    "arguments": json.loads(func.arguments or "{}"),
+                                                }
+                                            ),
+                                        )
+            except Exception as e:
+                yield Message(role="assistant", kind="error", content=f"Error processing streaming response: {str(e)}")
+        else:
+            # Handle non-streaming response (existing logic)
+            try:
+                # Try to access as dictionary first
+                if isinstance(response, dict):
+                    choices = response.get("choices", [])
+                    choice = choices[0] if choices else None
+                    message_data = choice.get("message", {}) if choice else {}
+                else:
+                    # Try to access as object
+                    choice = response.choices[0] if hasattr(response, "choices") else None  # type: ignore
+                    if choice is None:
+                        raise AttributeError("No choices in response")
+                    message_data = choice.message if hasattr(choice, "message") else {}  # type: ignore
 
+                    # Convert to dict if needed
+                    if not isinstance(message_data, dict):
+                        message_data = vars(message_data) if hasattr(message_data, "__dict__") else {}
+
+                # Process tool calls if present
+                if isinstance(message_data, dict) and "tool_calls" in message_data:
+                    for call in message_data["tool_calls"]:
+                        if isinstance(call, dict) and "function" in call:
+                            func = call["function"]
+                            yield Message(
+                                role="assistant",
+                                kind="tool_use",
+                                content=json.dumps(
+                                    {
+                                        "name": func.get("name"),
+                                        "arguments": json.loads(func.get("arguments", "{}")),
+                                    }
+                                ),
+                            )
+                # Process function call if present
+                elif isinstance(message_data, dict) and "function_call" in message_data:
+                    func = message_data["function_call"]
+                    yield Message(
+                        role="assistant",
+                        kind="tool_use",
+                        content={
+                            "name": func.get("name"),
+                            "arguments": json.loads(func.get("arguments", "{}")),
+                        },
+                    )
+                # Process content if present
+                elif isinstance(message_data, dict) and "content" in message_data:
+                    content = message_data["content"]
+                    if content:
+                        yield Message(role="assistant", kind="text", content=content)
+                else:
+                    # Fallback for unexpected response format
+                    yield Message(role="assistant", kind="error", content="Could not extract content from response")
+            except Exception as e:
+                yield Message(role="assistant", kind="error", content=f"Error processing response: {str(e)}")
