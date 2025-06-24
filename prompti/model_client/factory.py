@@ -6,7 +6,6 @@ import httpx
 
 from .base import ModelConfig
 from .litellm import LiteLLMClient
-from .rust import RustModelClient
 
 
 def create_client(cfg: ModelConfig, *, is_debug: bool = False, **httpx_kw: Any):
@@ -14,6 +13,4 @@ def create_client(cfg: ModelConfig, *, is_debug: bool = False, **httpx_kw: Any):
     client = httpx.AsyncClient(http2=True, **httpx_kw) if httpx_kw else None
     if cfg.provider == "litellm":
         return LiteLLMClient(cfg, client=client, is_debug=is_debug)
-    if cfg.provider == "rust":
-        return RustModelClient(cfg, client=client, is_debug=is_debug)
     raise ValueError(f"Unsupported provider: {cfg.provider}")

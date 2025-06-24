@@ -13,13 +13,12 @@ provider‑specific protocols.
 
 ## 🌟 Key Features
 
-- **🔄 Provider Agnostic**: Unified interface for LiteLLM, Rust-based clients, and custom providers
+- **🔄 Provider Agnostic**: Unified interface for LiteLLM and custom providers
 - **📝 Jinja2 Templates**: First-class support for dynamic prompt templating with loops, filters, and safe sandboxing
 - **⚡ Async First**: Full asynchronous workflow with cloud-native observability (OpenTelemetry, Prometheus)
 - **🎯 A2A Message Format**: Standardized Agent-to-Agent communication with support for text, files, data, and tool interactions
 - **🧪 A/B Testing**: Built-in experiment framework with Unleash and GrowthBook adapters
 - **📂 Multi-Source Templates**: Load prompts from local files, remote registries, or in-memory storage
-- **🔒 Rust Performance**: Optional Rust-based model client for high-performance integrations
 
 ## Get started
 
@@ -44,10 +43,9 @@ provider‑specific protocols.
    This will render `prompts/support_reply.yaml` and invoke the
    model via LiteLLM using `create_client`, printing messages to the console.
 
-Supported providers are **LiteLLM** and a native **Rust client**.  Set the
+The included client implementation uses **LiteLLM**. Set the
 appropriate environment variables such as `LITELLM_API_KEY` before running the
-examples.  The Rust client is compiled as a Python extension and accessed
-through a thin wrapper rather than spawning a subprocess.
+examples.
 
 4. **Send an ad-hoc query via the CLI**:
 
@@ -69,7 +67,6 @@ through a thin wrapper rather than spawning a subprocess.
 | Provider | Environment Variables | Notes |
 |----------|----------------------|-------|
 | **LiteLLM** | `LITELLM_API_KEY`, `LITELLM_ENDPOINT` | Universal LLM gateway |
-| **Rust Client** | Via `ModelConfig.api_key` | High-performance native client |
 
 Prompti also supports SDK-level A/B experiments via the `ExperimentRegistry`
 interface with built-in **Unleash** and **GrowthBook** adapters.

@@ -29,7 +29,6 @@ from .model_client import (
     ToolParams,
     ToolSpec,
     create_client,
-    RustModelClient,
 )
 from .replay import ModelClientRecorder, ReplayEngine
 from .template import PromptTemplate
@@ -46,7 +45,6 @@ __all__ = [
     "ToolChoice",
     "create_client",
     "LiteLLMClient",
-    "RustModelClient",
     "ReplayEngine",
     "ModelClientRecorder",
     "ExperimentRegistry",

@@ -11,7 +11,6 @@ from .base import (
 )
 from .factory import create_client
 from .litellm import LiteLLMClient
-from .rust import RustModelClient
 
 __all__ = [
     "ModelConfig",
@@ -22,6 +21,5 @@ __all__ = [
     "ToolChoice",
     "create_client",
     "LiteLLMClient",
-    "RustModelClient",
     "Message",
 ]
