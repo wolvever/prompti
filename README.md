@@ -217,7 +217,6 @@ async def main():
         "support_reply",
         {"name": "Ada", "issue": "login failed"},
         None,
-        model_cfg=cfg,
         client=create_client(cfg),
         registry=reg,
     ):
