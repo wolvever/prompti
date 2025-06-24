@@ -8,9 +8,8 @@ messages:
     parts:
       - type: text
         text: You are a customer-support assistant.
-  - role: assistant
+  - role: user
     parts:
       - type: text
         text: |
-          Hi {{ name }}, your ticket "{{ issue }}" has been created.
-          We'll get back soon. 
+          Hi {{ name }}, Is my ticket "{{ issue }}" has been created ?

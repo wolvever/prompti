@@ -26,4 +26,3 @@ def create_client(cfg: ModelConfig, **httpx_kw: Any):
     if cfg.provider == "rust":
         return RustModelClient(cfg, client=client)
     raise ValueError(f"Unsupported provider: {cfg.provider}")
-
