@@ -12,17 +12,17 @@ from .openrouter import OpenRouterClient
 from .rust import RustModelClient
 
 
-def create_client(cfg: ModelConfig, **httpx_kw: Any):
+def create_client(cfg: ModelConfig, *, is_debug: bool = False, **httpx_kw: Any):
     """Return a ``ModelClient`` instance for ``cfg.provider``."""
     client = httpx.AsyncClient(http2=True, **httpx_kw) if httpx_kw else None
     if cfg.provider == "openai":
-        return OpenAIClient(cfg, client=client)
+        return OpenAIClient(cfg, client=client, is_debug=is_debug)
     if cfg.provider == "claude":
-        return ClaudeClient(cfg, client=client)
+        return ClaudeClient(cfg, client=client, is_debug=is_debug)
     if cfg.provider == "openrouter":
-        return OpenRouterClient(cfg, client=client)
+        return OpenRouterClient(cfg, client=client, is_debug=is_debug)
     if cfg.provider == "litellm":
-        return LiteLLMClient(cfg, client=client)
+        return LiteLLMClient(cfg, client=client, is_debug=is_debug)
     if cfg.provider == "rust":
-        return RustModelClient(cfg, client=client)
+        return RustModelClient(cfg, client=client, is_debug=is_debug)
     raise ValueError(f"Unsupported provider: {cfg.provider}")
