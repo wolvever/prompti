@@ -45,6 +45,7 @@ variants:
 async def test_load_returns_template():
     engine = PromptEngine([FileSystemLoader(Path("./prompts"))])
     tmpl = await engine.load("summary")
+    assert isinstance(tmpl, PromptTemplate)
     assert tmpl.name == "summary"
     assert tmpl.version == "1.0"
 
