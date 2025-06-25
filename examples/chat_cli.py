@@ -107,7 +107,7 @@ async def main() -> None:
         provider=args.provider,
         model=args.model,
         api_key=args.api_key,
-        api_base=args.api_url,
+        api_url=args.api_url,
     )
     client = create_client(cfg)
 
