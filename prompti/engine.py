@@ -49,7 +49,7 @@ class PromptEngine:
     ) -> list[Message]:
         """Return formatted messages for ``template_name``."""
         tmpl = await self._resolve(template_name, None)
-        msgs, _ = tmpl.format(variables, variant=variant, ctx=ctx)
+        msgs, _ = tmpl.format(variables, variant=variant, ctx=ctx, format="a2a")
         return msgs
 
     async def run(
@@ -70,7 +70,9 @@ class PromptEngine:
         if variant is None:
             variant = tmpl.choose_variant(ctx) or next(iter(tmpl.variants))
 
-        messages, var = tmpl.format(variables, variant=variant, ctx=ctx)
+        messages, var = tmpl.format(
+            variables, variant=variant, ctx=ctx, format="a2a"
+        )
         params = RunParams(messages=messages, tool_params=tool_params, **run_params)
 
         with _tracer.start_as_current_span(

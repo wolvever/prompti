@@ -98,61 +98,65 @@ class PromptTemplate(BaseModel):
                     result.append(Message(role=role, kind="file", content=part.get("file")))
         return result
 
-    def format(self, variables: Dict[str, Any], *, variant: str | None = None, ctx: Dict[str, Any] | None = None) -> tuple[list[Message], Variant]:
-        start = perf_counter()
-        try:
-            ctx = ctx or variables
-            if variant is None:
-                variant = self.choose_variant(ctx) or next(iter(self.variants))
-            var = self.variants[variant]
-            messages = self._render_messages(var.messages, variables)
-            return messages, var
-        finally:
-            _format_latency.labels(self.name, self.version).observe(perf_counter() - start)
-
-    def to_openai_messages(
+    def format(
         self,
         variables: Dict[str, Any],
         *,
         variant: str | None = None,
         ctx: Dict[str, Any] | None = None,
-    ) -> tuple[list[dict], Variant]:
-        """Return a list of OpenAI/LiteLLM compatible messages.
+        format: str = "openai",
+    ) -> tuple[list[Message] | list[dict], Variant]:
+        """Render the template and return messages in the requested format.
 
-        This mirrors :meth:`format` but produces the simplified ``{"role",
-        "content"}`` structure expected by LiteLLM/OpenAI clients. File parts are
-        represented by a ``[FILE](path)`` placeholder and multiple parts within a
-        single message are joined by newlines.
+        Supported formats are ``openai`` (default), ``claude``, ``litellm`` and
+        ``a2a``. ``litellm`` is an alias for ``openai`` and ``a2a`` returns the
+        raw :class:`Message` objects used internally.
         """
-
-        def _part_to_str(part: dict) -> str:
-            if part.get("type") == "text":
-                txt = part.get("text", "").replace("\\n", "\n")
-                return _env.from_string(txt).render(**variables)
-            if part.get("type") == "file":
-                return f"[FILE]({part.get('file')})"
-            raise ValueError(f"Unsupported part type: {part.get('type')}")
-
         start = perf_counter()
         try:
             ctx = ctx or variables
             if variant is None:
                 variant = self.choose_variant(ctx) or next(iter(self.variants))
             var = self.variants[variant]
+            fmt = format.lower()
+            if fmt in {"openai", "litellm"}:
+                oa_messages: list[dict] = []
 
-            oa_messages: list[dict] = []
-            for msg in var.messages:
-                parts = [_part_to_str(p) for p in msg.get("parts", [])]
-                oa_messages.append(
-                    {
-                        "role": msg.get("role"),
-                        "content": "\n".join(parts).strip("\n"),
-                    }
-                )
+                def _part_to_str(part: dict) -> str:
+                    if part.get("type") == "text":
+                        txt = part.get("text", "").replace("\\n", "\n")
+                        return _env.from_string(txt).render(**variables)
+                    if part.get("type") == "file":
+                        return f"[FILE]({part.get('file')})"
+                    raise ValueError(f"Unsupported part type: {part.get('type')}")
 
-            return oa_messages, var
+                for msg in var.messages:
+                    parts = [_part_to_str(p) for p in msg.get("parts", [])]
+                    oa_messages.append(
+                        {"role": msg.get("role"), "content": "\n".join(parts).strip("\n")}
+                    )
+                return oa_messages, var
+            if fmt == "claude":
+                claude_msgs: list[dict] = []
+
+                def _part_to_block(part: dict) -> dict:
+                    if part.get("type") == "text":
+                        txt = part.get("text", "").replace("\\n", "\n")
+                        rendered = _env.from_string(txt).render(**variables)
+                        return {"type": "text", "text": rendered}
+                    if part.get("type") == "file":
+                        return {"type": "image", "source": {"type": "url", "url": part.get("file")}}
+                    raise ValueError(f"Unsupported part type: {part.get('type')}")
+
+                for msg in var.messages:
+                    blocks = [_part_to_block(p) for p in msg.get("parts", [])]
+                    claude_msgs.append({"role": msg.get("role"), "content": blocks})
+                return claude_msgs, var
+            if fmt == "a2a":
+                messages = self._render_messages(var.messages, variables)
+                return messages, var
+            raise ValueError(f"Unknown format: {format}")
         finally:
-            _format_latency.labels(self.name, self.version).observe(
-                perf_counter() - start
-            )
+            _format_latency.labels(self.name, self.version).observe(perf_counter() - start)
+
 
