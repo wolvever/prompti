@@ -134,7 +134,9 @@ template = PromptTemplate(
     },
 )
 
-msgs, _ = template.format({"name": "World"})
+# ``format`` defaults to ``"openai"``. Use ``format="a2a"`` for raw A2A messages
+# or ``format="claude"``/``format="litellm"`` for provider‑specific structures.
+msgs, _ = template.format({"name": "World"}, format="a2a")
 print(msgs[0].content)
 ```
 
@@ -157,7 +159,7 @@ multi = PromptTemplate(
     },
 )
 
-msgs, _ = multi.format({"file_path": "/tmp/document.pdf"})
+msgs, _ = multi.format({"file_path": "/tmp/document.pdf"}, format="a2a")
 for m in msgs:
     print(m.role, m.kind, m.content)
 ```
@@ -193,7 +195,7 @@ tmpl = PromptTemplate(
     },
 )
 
-msgs, _ = tmpl.format({"tasks": tasks})
+msgs, _ = tmpl.format({"tasks": tasks}, format="a2a")
 print(msgs[0].content)
 ```
 
