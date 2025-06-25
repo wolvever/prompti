@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Awaitable, Callable
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Any, Dict
 
@@ -11,13 +11,12 @@ from opentelemetry import trace
 
 from pydantic import BaseModel
 
-from .loader import FileSystemLoader, HTTPLoader, MemoryLoader
+from .loader import FileSystemLoader, HTTPLoader, MemoryLoader, TemplateLoader
 from .message import Message
 from .model_client import ModelClient, RunParams, ToolParams, ToolSpec
 from .template import PromptTemplate, choose_variant
 
 _tracer = trace.get_tracer(__name__)
-TemplateLoader = Callable[[str, str | None], Awaitable[tuple[str, PromptTemplate]]]
 
 
 class PromptEngine:
@@ -35,6 +34,10 @@ class PromptEngine:
             if tmpl:
                 return tmpl
         raise FileNotFoundError(name)
+
+    async def load(self, template_name: str) -> PromptTemplate:
+        """Resolve and cache ``template_name``."""
+        return await self._resolve(template_name, None)
 
     async def format(
         self,
@@ -97,6 +100,10 @@ class PromptEngine:
 
 class Setting(BaseModel):
     """Configuration options for :class:`PromptEngine`."""
+
+    model_config = {
+        "arbitrary_types_allowed": True,
+    }
 
     template_paths: list[Path] = [Path("./prompts")]
     cache_ttl: int = 300

@@ -5,9 +5,10 @@ from pathlib import Path
 import yaml
 
 from ..template import PromptTemplate, Variant
+from .base import TemplateLoader
 
 
-class FileSystemLoader:
+class FileSystemLoader(TemplateLoader):
     """Loader that reads templates from the local filesystem."""
 
     def __init__(self, base: Path) -> None:

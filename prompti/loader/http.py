@@ -4,9 +4,10 @@ import httpx
 import yaml
 
 from ..template import PromptTemplate, Variant
+from .base import TemplateLoader
 
 
-class HTTPLoader:
+class HTTPLoader(TemplateLoader):
     """Fetch templates from an HTTP endpoint."""
 
     def __init__(self, base_url: str, client: httpx.AsyncClient | None = None) -> None:

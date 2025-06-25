@@ -5,9 +5,10 @@ import asyncio
 import yaml
 
 from ..template import PromptTemplate, Variant
+from .base import TemplateLoader
 
 
-class LangfuseLoader:
+class LangfuseLoader(TemplateLoader):
     """Load templates via the Langfuse SDK."""
 
     def __init__(
