@@ -71,7 +71,7 @@ class PromptEngine:
     async def run(self, name: str, variables: dict, client: ModelClient, *, variant: str | None = None, tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None) -> AsyncGenerator[Message, None]: ...
 ```
 
-* 多种 `TemplateLoader`（FS / HTTP / Memory）+ `async-lru` TTL 缓存。
+* 多种 `load` 实现（FS / HTTP / Memory）+ `async-lru` TTL 缓存。
 
 #### 3.3 ModelClient
 
@@ -284,11 +284,11 @@ from jinja2 import Environment, StrictUndefined
 env = Environment(undefined=StrictUndefined)
 
 @alru_cache(maxsize=128, ttl=60)
-async def fetch_template(name: str, label: str):
+async def fetch_template(name: str, tags: str):
     ...  # 解析版本约束，拉取 YAML 文本
 
-async def render(name: str, label: str, **vars):
-    raw_yaml = await fetch_template(name, label)
+async def render(name: str, tags: str, **vars):
+    raw_yaml = await fetch_template(name, tags)
     data = yaml.safe_load(raw_yaml)
     for msg in data["messages"]:
         for part in msg.get("parts", []):

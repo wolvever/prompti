@@ -78,7 +78,7 @@ repositories, or a local Git repo. Each loader exposes the same async call
 contract:
 
 ```python
-version, tmpl = await loader("my_prompt", label="prod")
+version, tmpl = await loader.load("my_prompt", tags="prod")
 ```
 
 To wire them up:

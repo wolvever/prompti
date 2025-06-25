@@ -16,8 +16,8 @@ class PromptLayerLoader(TemplateLoader):
         self.api_key = api_key
         self.client = client or httpx.AsyncClient()
 
-    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
-        body = {"label": label} if label else {}
+    async def load(self, name: str, tags: str | None) -> tuple[str, PromptTemplate]:
+        body = {"label": tags} if tags else {}
         resp = await self.client.post(
             f"{self.URL}/{name}",
             headers={"X-API-KEY": self.api_key, "Content-Type": "application/json"},
@@ -33,7 +33,7 @@ class PromptLayerLoader(TemplateLoader):
             name=name,
             description="",
             version=str(data["version"]),
-            tags=[label] if label else [],
+            tags=[tags] if tags else [],
             variants={"default": Variant(model_config=ModelConfig(provider="litellm", model="unknown"), messages=content)},
             yaml=yaml_blob,
         )

@@ -56,7 +56,7 @@ async def test_load_caches_result():
         def __init__(self):
             self.calls = 0
 
-        async def __call__(self, name: str, label: str | None):
+        async def load(self, name: str, tags: str | None):
             self.calls += 1
             return "1", PromptTemplate(
                 name=name,
