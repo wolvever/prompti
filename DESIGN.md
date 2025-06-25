@@ -38,7 +38,7 @@ class ModelConfig(BaseModel):
 
 
 class Variant(BaseModel):
-    contains: list[str]
+    selector: list[str]
     model_config: ModelConfig
     messages: list[dict]
 

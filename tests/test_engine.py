@@ -22,7 +22,7 @@ name: x
 version: '1'
 variants:
   base:
-    contains: []
+    selector: []
     model_config:
       provider: dummy
       model: x
@@ -64,7 +64,7 @@ async def test_load_caches_result():
                 version="1",
                 variants={
                     "base": Variant(
-                        contains=[],
+                        selector=[],
                         model_config=ModelConfig(provider="dummy", model="x"),
                         messages=[],
                     )

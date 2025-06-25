@@ -127,7 +127,7 @@ template = PromptTemplate(
     version="1.0",
     variants={
         "default": Variant(
-            contains=[],
+            selector=[],
             model_config=ModelConfig(provider="litellm", model="gpt-4o"),
             messages=[{"role": "user", "parts": [{"type": "text", "text": "Hello {{ name }}!"}]}],
         )
@@ -147,7 +147,7 @@ multi = PromptTemplate(
     version="1.0",
     variants={
         "default": Variant(
-            contains=[],
+            selector=[],
             model_config=ModelConfig(provider="litellm", model="gpt-3.5-turbo"),
             messages=[
                 {"role": "system", "parts": [{"type": "text", "text": "Analyze file"}]},
@@ -176,7 +176,7 @@ tmpl = PromptTemplate(
     version="1.0",
     variants={
         "default": Variant(
-            contains=[],
+            selector=[],
             model_config=ModelConfig(provider="litellm", model="gpt-3.5-turbo"),
             messages=[
                 {
