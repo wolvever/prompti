@@ -110,3 +110,42 @@ class PromptTemplate(BaseModel):
         finally:
             _format_latency.labels(self.name, self.version).observe(perf_counter() - start)
 
+    def _part_to_str(self, part: dict, variables: Dict[str, Any]) -> str:
+        """Render a single part as plain text."""
+        ptype = part.get("type")
+        if ptype == "text":
+            txt = part.get("text", "").replace("\\n", "\n")
+            return _env.from_string(txt).render(**variables)
+        if ptype == "file":
+            return f"[FILE]({part.get('file')})"
+        raise ValueError(f"Unsupported part type: {ptype}")
+
+    def to_openai_messages(
+        self,
+        variables: Dict[str, Any],
+        *,
+        variant: str | None = None,
+        ctx: Dict[str, Any] | None = None,
+    ) -> tuple[list[dict], Variant]:
+        """Return messages in OpenAI format."""
+        start = perf_counter()
+        try:
+            ctx = ctx or variables
+            if variant is None:
+                variant = self.choose_variant(ctx) or next(iter(self.variants))
+            var = self.variants[variant]
+
+            msgs: list[dict] = []
+            for m in var.messages:
+                parts = m.get("parts", [])
+                text_parts = [self._part_to_str(p, variables) for p in parts]
+                msgs.append(
+                    {
+                        "role": m.get("role"),
+                        "content": "\n".join(text_parts).strip("\n"),
+                    }
+                )
+            return msgs, var
+        finally:
+            _format_latency.labels(self.name, self.version).observe(perf_counter() - start)
+
