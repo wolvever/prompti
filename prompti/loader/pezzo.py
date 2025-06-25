@@ -3,9 +3,10 @@ from __future__ import annotations
 import yaml
 
 from ..template import PromptTemplate, Variant
+from .base import TemplateLoader
 
 
-class PezzoLoader:
+class PezzoLoader(TemplateLoader):
     """Retrieve prompts via the Pezzo client."""
 
     def __init__(self, project: str) -> None:

@@ -3,9 +3,10 @@ from __future__ import annotations
 import yaml
 
 from ..template import PromptTemplate, Variant
+from .base import TemplateLoader
 
 
-class MemoryLoader:
+class MemoryLoader(TemplateLoader):
     """Load templates from an in-memory mapping."""
 
     def __init__(self, mapping: dict[str, dict[str, str]]):

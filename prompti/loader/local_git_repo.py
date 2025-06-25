@@ -5,9 +5,10 @@ from pathlib import Path
 import yaml
 
 from ..template import PromptTemplate, Variant
+from .base import TemplateLoader
 
 
-class LocalGitRepoLoader:
+class LocalGitRepoLoader(TemplateLoader):
     """Read prompt files from a local Git repository."""
 
     def __init__(self, repo_path: Path, ref: str = "HEAD") -> None:

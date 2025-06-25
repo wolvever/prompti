@@ -3,10 +3,11 @@ from __future__ import annotations
 import httpx
 import yaml
 
-from ..template import PromptTemplate, Variant
+from ..template import PromptTemplate, Variant, ModelConfig
+from .base import TemplateLoader
 
 
-class PromptLayerLoader:
+class PromptLayerLoader(TemplateLoader):
     """Load templates from PromptLayer."""
 
     URL = "https://api.promptlayer.com/prompt-templates"
