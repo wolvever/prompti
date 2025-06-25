@@ -9,7 +9,7 @@ from prompti.model_client import ModelConfig
 @pytest.mark.asyncio
 async def test_load_from_file_has_expected_fields():
     loader = FileSystemLoader(Path("./prompts"))
-    version, tmpl = await loader("summary", None)
+    version, tmpl = await loader.load("summary", None)
     assert version == "1.0"
     assert tmpl.name == "summary"
     assert tmpl.version == "1.0"

@@ -15,7 +15,7 @@ class FileSystemLoader(TemplateLoader):
         """Create loader with a base directory."""
         self.base = base
 
-    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
+    async def load(self, name: str, tags: str | None) -> tuple[str, PromptTemplate]:
         """Load and return the template identified by ``name``."""
         path = self.base / f"{name}.yaml"
         text = path.read_text()

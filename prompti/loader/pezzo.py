@@ -14,8 +14,8 @@ class PezzoLoader(TemplateLoader):
 
         self.client = PezzoClient(project=project)
 
-    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
-        prompt = await self.client.get_prompt(slug=name, environment="production", version_tag=label)
+    async def load(self, name: str, tags: str | None) -> tuple[str, PromptTemplate]:
+        prompt = await self.client.get_prompt(slug=name, environment="production", version_tag=tags)
         yaml_blob = prompt["yaml"]
         meta = yaml.safe_load(yaml_blob)
         tmpl = PromptTemplate(

@@ -21,8 +21,8 @@ class LangfuseLoader(TemplateLoader):
 
         self.client = get_client(public_key=public_key, secret_key=secret_key, base_url=base_url)
 
-    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
-        prm = await asyncio.to_thread(self.client.prompts().get_prompt, name, label=label)
+    async def load(self, name: str, tags: str | None) -> tuple[str, PromptTemplate]:
+        prm = await asyncio.to_thread(self.client.prompts().get_prompt, name, label=tags)
         yaml_blob = prm.yaml
         meta = yaml.safe_load(yaml_blob)
         tmpl = PromptTemplate(

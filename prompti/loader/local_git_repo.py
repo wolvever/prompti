@@ -17,7 +17,7 @@ class LocalGitRepoLoader(TemplateLoader):
         self.repo = pygit2.Repository(str(repo_path))
         self.ref = ref
 
-    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
+    async def load(self, name: str, tags: str | None) -> tuple[str, PromptTemplate]:
         commit = self.repo.revparse_single(self.ref)
         tree = commit.tree
         blob = tree[f"prompts/{name}.yaml"]

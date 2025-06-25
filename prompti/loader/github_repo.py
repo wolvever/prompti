@@ -20,7 +20,7 @@ class GitHubRepoLoader(TemplateLoader):
         self.headers = {"Authorization": f"token {token}"} if token else {}
         self.client = httpx.AsyncClient()
 
-    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
+    async def load(self, name: str, tags: str | None) -> tuple[str, PromptTemplate]:
         path = f"{self.root}/{name}.yaml"
         url = f"https://api.github.com/repos/{self.repo}/contents/{path}"
         resp = await self.client.get(url, params={"ref": self.branch}, headers=self.headers)

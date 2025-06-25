@@ -28,9 +28,9 @@ class PromptEngine:
         self._cache_ttl = cache_ttl
         self._resolve = alru_cache(maxsize=128, ttl=cache_ttl)(self._resolve_impl)
 
-    async def _resolve_impl(self, name: str, label: str | None) -> PromptTemplate:
+    async def _resolve_impl(self, name: str, tags: str | None) -> PromptTemplate:
         for loader in self._loaders:
-            version, tmpl = await loader(name, label)
+            version, tmpl = await loader.load(name, tags)
             if tmpl:
                 return tmpl
         raise FileNotFoundError(name)

@@ -13,7 +13,7 @@ class MemoryLoader(TemplateLoader):
         """Store the mapping of template name to template data."""
         self.mapping = mapping
 
-    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
+    async def load(self, name: str, tags: str | None) -> tuple[str, PromptTemplate]:
         """Return the template ``name`` from the mapping."""
         data = self.mapping.get(name)
         if not data:

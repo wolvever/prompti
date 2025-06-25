@@ -15,9 +15,9 @@ class HTTPLoader(TemplateLoader):
         self.base_url = base_url.rstrip("/")
         self.client = client or httpx.AsyncClient()
 
-    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
+    async def load(self, name: str, tags: str | None) -> tuple[str, PromptTemplate]:
         """Retrieve ``name`` from the remote registry."""
-        params = {"label": label} if label else {}
+        params = {"label": tags} if tags else {}
         resp = await self.client.get(f"{self.base_url}/templates/{name}", params=params)
         if resp.status_code != 200:
             raise FileNotFoundError(name)

@@ -9,15 +9,15 @@ class TemplateLoader(ABC):
     """Abstract base class for template loaders."""
 
     @abstractmethod
-    async def __call__(self, name: str, label: str | None) -> tuple[str, PromptTemplate]:
+    async def load(self, name: str, tags: str | None) -> tuple[str, PromptTemplate]:
         """Return the template identified by ``name``.
 
         Parameters
         ----------
         name: str
             Template name to load.
-        label: str | None
-            Optional label used by some backends to select a version.
+        tags: str | None
+            Optional tags used by some backends to select a version.
         Returns
         -------
         tuple[str, PromptTemplate]
