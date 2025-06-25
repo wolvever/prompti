@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from prompti.experiment import GrowthBookRegistry, UnleashRegistry, bucket
-from prompti.template import choose_variant, Variant, PromptTemplate
+from prompti.template import Variant, PromptTemplate
 from prompti.message import Message
 from prompti.model_client import ModelClient, ModelConfig
 
@@ -54,4 +54,4 @@ def test_choose_variant():
         },
     )
     ctx = {"role": "vip-user"}
-    assert choose_variant(tmpl, ctx) == "a"
+    assert tmpl.choose_variant(ctx) == "a"

@@ -32,12 +32,11 @@ from .model_client import (
     create_client,
 )
 from .replay import ModelClientRecorder, ReplayEngine
-from .template import PromptTemplate, choose_variant
+from .template import PromptTemplate
 
 __all__ = [
     "Message",
     "PromptTemplate",
-    "choose_variant",
     "PromptEngine",
     "ModelClient",
     "ModelConfig",
