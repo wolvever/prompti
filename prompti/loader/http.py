@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 import yaml
 
-from ..template import PromptTemplate
+from ..template import PromptTemplate, Variant
 
 
 class HTTPLoader:
@@ -26,10 +26,11 @@ class HTTPLoader:
         version = str(ydata.get("version", data.get("version", "0")))
         tmpl = PromptTemplate(
             id=name,
-            name=name,
+            name=ydata.get("name", name),
+            description=ydata.get("description", ""),
             version=version,
-            labels=list(ydata.get("labels", [])),
-            required_variables=list(ydata.get("required_variables", [])),
+            tags=list(ydata.get("tags", [])),
+            variants={k: Variant(**v) for k, v in ydata.get("variants", {}).items()},
             yaml=text,
         )
         return version, tmpl

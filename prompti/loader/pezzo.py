@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import yaml
 
-from ..template import PromptTemplate
+from ..template import PromptTemplate, Variant
 
 
 class PezzoLoader:
@@ -19,9 +19,11 @@ class PezzoLoader:
         meta = yaml.safe_load(yaml_blob)
         tmpl = PromptTemplate(
             id=name,
-            name=name,
+            name=meta.get("name", name),
+            description=meta.get("description", ""),
             version=str(prompt["version"]),
-            labels=meta.get("labels", prompt.get("tags", [])),
+            tags=meta.get("tags", prompt.get("tags", [])),
+            variants={k: Variant(**v) for k, v in meta.get("variants", {}).items()},
             yaml=yaml_blob,
         )
         return tmpl.version, tmpl

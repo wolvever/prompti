@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from ..template import PromptTemplate
+from ..template import PromptTemplate, Variant
 
 
 class FileSystemLoader:
@@ -22,10 +22,11 @@ class FileSystemLoader:
         version = str(data.get("version", "0"))
         tmpl = PromptTemplate(
             id=name,
-            name=name,
+            name=data.get("name", name),
+            description=data.get("description", ""),
             version=version,
-            labels=list(data.get("labels", [])),
-            required_variables=list(data.get("required_variables", [])),
+            tags=list(data.get("tags", [])),
+            variants={k: Variant(**v) for k, v in data.get("variants", {}).items()},
             yaml=text,
         )
         return version, tmpl

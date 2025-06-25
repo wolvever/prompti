@@ -4,7 +4,7 @@ import asyncio
 
 import yaml
 
-from ..template import PromptTemplate
+from ..template import PromptTemplate, Variant
 
 
 class AgentaLoader:
@@ -24,11 +24,14 @@ class AgentaLoader:
             environment_slug=label or "production",
         )
         yaml_blob = yaml.safe_dump(cfg["prompt"])
+        meta = yaml.safe_load(yaml_blob)
         tmpl = PromptTemplate(
             id=name,
-            name=name,
+            name=meta.get("name", name),
+            description=meta.get("description", ""),
             version=str(cfg.get("variant_version", "0")),
-            labels=[label] if label else ["production"],
+            tags=meta.get("tags", [label] if label else ["production"]),
+            variants={k: Variant(**v) for k, v in meta.get("variants", {}).items()},
             yaml=yaml_blob,
         )
         return tmpl.version, tmpl
