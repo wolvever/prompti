@@ -38,7 +38,7 @@ def _ctx_to_flat(ctx: Dict[str, Any]) -> str:
 class Variant(BaseModel):
     """Single experiment arm."""
 
-    contains: list[str] = []
+    selector: list[str] = []
     model_cfg: ModelConfig = Field(..., alias="model_config")
     messages: list[dict]
     tools: list[dict] | None = None
@@ -59,7 +59,7 @@ class PromptTemplate(BaseModel):
         """Return the first variant id whose tokens all appear in ``ctx``."""
         haystack = _ctx_to_flat(ctx)
         for vid, var in self.variants.items():
-            if all(tok.lower() in haystack for tok in var.contains):
+            if all(tok.lower() in haystack for tok in var.selector):
                 return vid
         return None
 

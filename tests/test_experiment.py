@@ -49,8 +49,8 @@ def test_choose_variant():
         description="",
         version="1",
         variants={
-            "a": Variant(contains=["vip"], model_config=ModelConfig(provider="x", model="m1"), messages=[]),
-            "b": Variant(contains=["guest"], model_config=ModelConfig(provider="x", model="m1"), messages=[]),
+            "a": Variant(selector=["vip"], model_config=ModelConfig(provider="x", model="m1"), messages=[]),
+            "b": Variant(selector=["guest"], model_config=ModelConfig(provider="x", model="m1"), messages=[]),
         },
     )
     ctx = {"role": "vip-user"}

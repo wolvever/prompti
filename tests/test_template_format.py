@@ -24,7 +24,7 @@ def test_single_message_format():
         version="1.0",
         variants={
             "base": Variant(
-                contains=[],
+                selector=[],
                 model_config=ModelConfig(provider="dummy", model="x"),
                 messages=[
                     {
@@ -48,7 +48,7 @@ def test_multi_message_different_kinds(tmp_path: Path):
         version="1.0",
         variants={
             "base": Variant(
-                contains=[],
+                selector=[],
                 model_config=ModelConfig(provider="dummy", model="x"),
                 messages=[
                     {"role": "system", "parts": [{"type": "text", "text": "Analyze file"}]},
@@ -69,7 +69,7 @@ def test_complex_jinja_multi_message():
         version="1.0",
         variants={
             "base": Variant(
-                contains=[],
+                selector=[],
                 model_config=ModelConfig(provider="dummy", model="x"),
                 messages=[
                     {
