@@ -35,6 +35,10 @@ class PromptEngine:
                 return tmpl
         raise FileNotFoundError(name)
 
+    async def load(self, template_name: str) -> PromptTemplate:
+        """Resolve and cache ``template_name``."""
+        return await self._resolve(template_name, None)
+
     async def format(
         self,
         template_name: str,
