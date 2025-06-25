@@ -9,6 +9,7 @@ from .experiment import (
     bucket,
 )
 from .loader import (
+    TemplateLoader,
     AgentaLoader,
     FileSystemLoader,
     GitHubRepoLoader,
@@ -54,6 +55,7 @@ __all__ = [
     "GrowthBookRegistry",
     "bucket",
     "Kind",
+    "TemplateLoader",
     "HTTPLoader",
     "FileSystemLoader",
     "MemoryLoader",

@@ -7,9 +7,10 @@ import httpx
 import yaml
 
 from ..template import PromptTemplate, Variant
+from .base import TemplateLoader
 
 
-class GitHubRepoLoader:
+class GitHubRepoLoader(TemplateLoader):
     """Fetch prompt files from a GitHub repository."""
 
     def __init__(self, repo: str, branch: str = "main", token: str | None = None, root: str = "prompts") -> None:

@@ -1,5 +1,6 @@
 """Template loaders package."""
 
+from .base import TemplateLoader
 from .agenta import AgentaLoader
 from .filesystem import FileSystemLoader
 from .github_repo import GitHubRepoLoader
@@ -11,6 +12,7 @@ from .pezzo import PezzoLoader
 from .promptlayer import PromptLayerLoader
 
 __all__ = [
+    "TemplateLoader",
     "FileSystemLoader",
     "MemoryLoader",
     "HTTPLoader",

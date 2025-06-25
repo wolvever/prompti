@@ -5,9 +5,10 @@ import asyncio
 import yaml
 
 from ..template import PromptTemplate, Variant
+from .base import TemplateLoader
 
 
-class AgentaLoader:
+class AgentaLoader(TemplateLoader):
     """Fetch templates from Agenta via the SDK."""
 
     def __init__(self, app_slug: str) -> None:
