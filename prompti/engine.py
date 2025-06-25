@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from .loader import FileSystemLoader, HTTPLoader, MemoryLoader, TemplateLoader
 from .message import Message
-from .model_client import ModelClient, ToolParams, ToolSpec
+from .model_client import ModelClient, RunParams, ToolParams, ToolSpec
 from .template import PromptTemplate, choose_variant
 
 _tracer = trace.get_tracer(__name__)
@@ -65,9 +65,13 @@ class PromptEngine:
     ) -> AsyncGenerator[Message, None]:
         """Stream messages produced by running the template via ``client``."""
         tmpl = await self._resolve(template_name, None)
+        ctx = ctx or variables
 
         if variant is None:
-            variant = choose_variant(tmpl, ctx or variables) or next(iter(tmpl.variants))
+            variant = choose_variant(tmpl, ctx) or next(iter(tmpl.variants))
+
+        messages, var = tmpl.format(variables, variant=variant, ctx=ctx)
+        params = RunParams(messages=messages, tool_params=tool_params, **run_params)
 
         with _tracer.start_as_current_span(
             "prompt.run",
@@ -77,14 +81,8 @@ class PromptEngine:
                 "variant": variant,
             },
         ):
-            async for msg in tmpl.run(
-                variables,
-                client=client,
-                variant=variant,
-                ctx=ctx or variables,
-                tool_params=tool_params,
-                **run_params,
-            ):
+            client.cfg = var.model_cfg
+            async for msg in client.run(params):
                 yield msg
 
     @classmethod

@@ -35,7 +35,6 @@ async def main():
     async for msg in engine.run(
         "support_reply",
         {"name": "Ada", "issue": "login failed"},
-        tags=None,
         client=client,
         stream=True,
     ):

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import AsyncGenerator
 from time import perf_counter
 from typing import Any, Dict
 
@@ -15,13 +14,7 @@ from prometheus_client import Histogram
 from pydantic import BaseModel, model_validator, Field
 
 from .message import Kind, Message
-from .model_client import (
-    ModelClient,
-    ModelConfig,
-    RunParams,
-    ToolParams,
-    ToolSpec,
-)
+from .model_client import ModelConfig
 
 _env = SandboxedEnvironment(undefined=StrictUndefined)
 
@@ -116,22 +109,3 @@ class PromptTemplate(BaseModel):
         finally:
             _format_latency.labels(self.name, self.version).observe(perf_counter() - start)
 
-    async def run(
-        self,
-        variables: Dict[str, Any],
-        client: ModelClient,
-        *,
-        variant: str | None = None,
-        ctx: Dict[str, Any] | None = None,
-        tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None,
-        stream: bool = True,
-        **run_params: Any,
-    ) -> AsyncGenerator[Message, None]:
-        """Execute the chosen variant via ``client``."""
-        messages, var = self.format(variables, variant=variant, ctx=ctx)
-        params = RunParams(messages=messages, tool_params=tool_params, stream=stream, **run_params)
-
-        client.cfg = var.model_cfg
-
-        async for m in client.run(params):
-            yield m
