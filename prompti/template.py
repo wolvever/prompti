@@ -55,9 +55,9 @@ class PromptTemplate(BaseModel):
     yaml: str = ""
     id: str | None = None
 
-    def choose_variant(self, ctx: Dict[str, Any]) -> str | None:
-        """Return the first variant id whose tokens all appear in ``ctx``."""
-        haystack = _ctx_to_flat(ctx)
+    def choose_variant(self, selector: Dict[str, Any]) -> str | None:
+        """Return the first variant id whose tokens all appear in ``selector``."""
+        haystack = _ctx_to_flat(selector)
         for vid, var in self.variants.items():
             if all(tok.lower() in haystack for tok in var.selector):
                 return vid
