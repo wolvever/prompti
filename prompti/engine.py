@@ -36,7 +36,7 @@ class PromptEngine:
         raise FileNotFoundError(name)
 
     async def load(self, template_name: str) -> PromptTemplate:
-        """Resolve and cache ``template_name``."""
+        """Public entry: resolve & cache a template by name."""
         return await self._resolve(template_name, None)
 
     async def format(
