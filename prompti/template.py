@@ -110,3 +110,49 @@ class PromptTemplate(BaseModel):
         finally:
             _format_latency.labels(self.name, self.version).observe(perf_counter() - start)
 
+    def to_openai_messages(
+        self,
+        variables: Dict[str, Any],
+        *,
+        variant: str | None = None,
+        ctx: Dict[str, Any] | None = None,
+    ) -> tuple[list[dict], Variant]:
+        """Return a list of OpenAI/LiteLLM compatible messages.
+
+        This mirrors :meth:`format` but produces the simplified ``{"role",
+        "content"}`` structure expected by LiteLLM/OpenAI clients. File parts are
+        represented by a ``[FILE](path)`` placeholder and multiple parts within a
+        single message are joined by newlines.
+        """
+
+        def _part_to_str(part: dict) -> str:
+            if part.get("type") == "text":
+                txt = part.get("text", "").replace("\\n", "\n")
+                return _env.from_string(txt).render(**variables)
+            if part.get("type") == "file":
+                return f"[FILE]({part.get('file')})"
+            raise ValueError(f"Unsupported part type: {part.get('type')}")
+
+        start = perf_counter()
+        try:
+            ctx = ctx or variables
+            if variant is None:
+                variant = self.choose_variant(ctx) or next(iter(self.variants))
+            var = self.variants[variant]
+
+            oa_messages: list[dict] = []
+            for msg in var.messages:
+                parts = [_part_to_str(p) for p in msg.get("parts", [])]
+                oa_messages.append(
+                    {
+                        "role": msg.get("role"),
+                        "content": "\n".join(parts).strip("\n"),
+                    }
+                )
+
+            return oa_messages, var
+        finally:
+            _format_latency.labels(self.name, self.version).observe(
+                perf_counter() - start
+            )
+

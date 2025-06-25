@@ -95,3 +95,50 @@ def test_complex_jinja_multi_message():
     content = msgs[0].content
     assert "Fix" in content and "Doc" in content
 
+
+def test_to_openai_messages_single():
+    template = PromptTemplate(
+        name="hello",
+        description="",
+        version="1.0",
+        variants={
+            "base": Variant(
+                selector=[],
+                model_config=ModelConfig(provider="dummy", model="x"),
+                messages=[
+                    {
+                        "role": "user",
+                        "parts": [{"type": "text", "text": "Hello {{ name }}!"}],
+                    }
+                ],
+            )
+        },
+    )
+    msgs, _ = template.to_openai_messages({"name": "World"}, variant="base")
+    assert msgs == [{"role": "user", "content": "Hello World!"}]
+
+
+def test_to_openai_messages_with_file(tmp_path: Path):
+    file_path = tmp_path / "document.pdf"
+    template = PromptTemplate(
+        name="test",
+        description="",
+        version="1.0",
+        variants={
+            "base": Variant(
+                selector=[],
+                model_config=ModelConfig(provider="dummy", model="x"),
+                messages=[
+                    {
+                        "role": "system",
+                        "parts": [{"type": "text", "text": "Analyze file"}],
+                    },
+                    {"role": "user", "parts": [{"type": "file", "file": str(file_path)}]},
+                ],
+            )
+        },
+    )
+    msgs, _ = template.to_openai_messages({"file_path": str(file_path)}, variant="base")
+    assert msgs[0]["content"] == "Analyze file"
+    assert f"[FILE]({file_path})" == msgs[1]["content"]
+
