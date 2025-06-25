@@ -21,13 +21,19 @@ from ..message import Message
 
 
 class ModelConfig(BaseModel):
-    """Static connection details for a model provider."""
+    """Static connection and default generation parameters."""
 
     provider: str
     model: str
     api_key: str | None = None
     api_url: str | None = None
     api_key_var: str | None = None
+
+    # generation defaults (may be overridden per call)
+    temperature: float | None = None
+    top_p: float | None = None
+    max_tokens: int | None = None
+    api_key_secret_ref: str | None = None
 
 
 class ToolSpec(BaseModel):

@@ -1,15 +1,20 @@
-id: support_reply
-name: Customer Support Reply
-version: 1.0
-labels: [customer-support, automated-response]
-required_variables: [name, issue]
-messages:
-  - role: system
-    parts:
-      - type: text
-        text: You are a customer-support assistant.
-  - role: user
-    parts:
-      - type: text
-        text: |
-          Hi {{ name }}, Is my ticket "{{ issue }}" has been created ?
+name: support_reply
+description: Customer Support Reply
+version: "1.0"
+tags: [customer-support, automated-response]
+variants:
+  default:
+    contains: []
+    model_config:
+      provider: litellm
+      model: gpt-3.5-turbo
+    messages:
+      - role: system
+        parts:
+          - type: text
+            text: You are a customer-support assistant.
+      - role: user
+        parts:
+          - type: text
+            text: |
+              Hi {{ name }}, your ticket "{{ issue }}" has been created.

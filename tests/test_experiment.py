@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from prompti.engine import PromptEngine, Setting
 from prompti.experiment import GrowthBookRegistry, UnleashRegistry, bucket
+from prompti.template import choose_variant, Variant, PromptTemplate
 from prompti.message import Message
 from prompti.model_client import ModelClient, ModelConfig
 
@@ -43,32 +43,15 @@ async def test_growthbook_registry():
     assert split.variant is None
 
 
-@pytest.mark.asyncio
-async def test_engine_sdk_split(tmp_path):
-    """Engine should pick variant using registry weights."""
-    features = {"support_reply": {"id": "clarify", "variants": {"A": 1.0}}}
-    reg = GrowthBookRegistry(features)
-    settings = Setting(template_paths=["./prompts"])
-    engine = PromptEngine.from_setting(settings)
-
-    # Create a mock client that properly inherits from ModelClient
-    class MockClient(ModelClient):
-        provider = "mock"
-
-        def __init__(self, cfg: ModelConfig):
-            super().__init__(cfg, client=httpx.AsyncClient(http2=False))
-
-        async def _run(self, params):
-            yield Message(role="assistant", kind="text", content="ok")
-
-    cfg = ModelConfig(provider="mock", model="x")
-    mock_client = MockClient(cfg)
-    msgs = engine.run(
-        "support_reply",
-        {"name": "Bob", "issue": "none"},
-        None,
-        client=mock_client,
-        registry=reg,
+def test_choose_variant():
+    tmpl = PromptTemplate(
+        name="demo",
+        description="",
+        version="1",
+        variants={
+            "a": Variant(contains=["vip"], model_config=ModelConfig(provider="x", model="m1"), messages=[]),
+            "b": Variant(contains=["guest"], model_config=ModelConfig(provider="x", model="m1"), messages=[]),
+        },
     )
-    out = [m async for m in msgs]
-    assert out[-1].content == "ok"
+    ctx = {"role": "vip-user"}
+    assert choose_variant(tmpl, ctx) == "a"

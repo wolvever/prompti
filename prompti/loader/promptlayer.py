@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 import yaml
 
-from ..template import PromptTemplate
+from ..template import PromptTemplate, Variant
 
 
 class PromptLayerLoader:
@@ -26,12 +26,14 @@ class PromptLayerLoader:
             raise FileNotFoundError(name)
         data = resp.json()
         content = data["prompt_template"]["content"]
-        yaml_blob = yaml.safe_dump({"messages": content})
+        yaml_blob = yaml.safe_dump({"variants": {"default": {"model_config": {"provider": "litellm", "model": "unknown"}, "messages": content}}})
         tmpl = PromptTemplate(
             id=name,
             name=name,
+            description="",
             version=str(data["version"]),
-            labels=[label] if label else [],
+            tags=[label] if label else [],
+            variants={"default": Variant(model_config=ModelConfig(provider="litellm", model="unknown"), messages=content)},
             yaml=yaml_blob,
         )
         return tmpl.version, tmpl

@@ -1,16 +1,18 @@
-"""Representation and execution of Jinja2-based prompt templates."""
+"""Prompt template with variant selection and Jinja rendering."""
 
 from __future__ import annotations
 
+import json
+import re
 from collections.abc import AsyncGenerator
 from time import perf_counter
-from typing import Any
+from typing import Any, Dict
 
 import yaml
 from jinja2 import StrictUndefined
 from jinja2.sandbox import SandboxedEnvironment
 from prometheus_client import Histogram
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, model_validator, Field
 
 from .message import Kind, Message
 from .model_client import (
@@ -26,78 +28,110 @@ _env = SandboxedEnvironment(undefined=StrictUndefined)
 _format_latency = Histogram(
     "prompt_format_latency_seconds",
     "Time spent formatting a prompt",
-    labelnames=["template_id", "version"],
+    labelnames=["template_name", "version"],
+    registry=None,
 )
+
+SNAKE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def _ctx_to_flat(ctx: Dict[str, Any]) -> str:
+    """Flatten context to a lowercase JSON string for token matching."""
+    return json.dumps(ctx, separators=(",", ":")).lower()
+
+
+def choose_variant(tmpl: "PromptTemplate", ctx: Dict[str, Any]) -> str | None:
+    """Return the first variant id whose tokens all appear in ``ctx``."""
+    haystack = _ctx_to_flat(ctx)
+    for vid, var in tmpl.variants.items():
+        if all(tok.lower() in haystack for tok in var.contains):
+            return vid
+    return None
+
+
+class Variant(BaseModel):
+    """Single experiment arm."""
+
+    contains: list[str] = []
+    model_cfg: ModelConfig = Field(..., alias="model_config")
+    messages: list[dict]
+    tools: list[dict] | None = None
 
 
 class PromptTemplate(BaseModel):
-    """Prompt template defined in YAML messages format."""
+    """Prompt template with multiple variants."""
 
-    id: str
     name: str
+    description: str = ""
     version: str
-    labels: list[str] = []
-    required_variables: list[str] = []
+    tags: list[str] = []
+    variants: dict[str, Variant]
     yaml: str = ""
-    model_cfg: ModelConfig | None = None
+    id: str | None = None
 
-    _data: dict[str, Any] = PrivateAttr(default_factory=dict)
+    @model_validator(mode="after")
+    def _snake_names(self) -> "PromptTemplate":
+        if not SNAKE.fullmatch(self.name):
+            raise ValueError("name must be lower_snake_case")
+        bad = [v for v in self.variants if not SNAKE.fullmatch(v)]
+        if bad:
+            raise ValueError(f"variant IDs not snake_case: {bad}")
+        if self.id is None:
+            self.id = self.name
+        return self
 
-    def model_post_init(self, _context: Any) -> None:
-        """Parse YAML once after model initialization."""
-        self._data = yaml.safe_load(self.yaml) if self.yaml else {}
-        if not self.model_cfg:
-            cfg_dict = self._data.get("model_config")
-            if cfg_dict:
-                self.model_cfg = ModelConfig(**cfg_dict)
+    def model_post_init(self, _context: Any) -> None:  # type: ignore[override]
+        """Store raw YAML and populate variants if created from text."""
+        if self.yaml and not self.variants:
+            data = yaml.safe_load(self.yaml)
+            self.description = data.get("description", self.description)
+            self.version = str(data.get("version", self.version))
+            self.tags = data.get("tags", self.tags) or []
+            self.variants = {k: Variant(**v) for k, v in data.get("variants", {}).items()}
 
-    def format(
-        self,
-        variables: dict[str, Any],
-        tag: str | None = None,
-    ) -> list[Message]:
+    def _render_messages(self, messages: list[dict], variables: Dict[str, Any]) -> list[Message]:
+        result: list[Message] = []
+        for msg in messages:
+            role = msg.get("role")
+            for part in msg.get("parts", []):
+                ptype = part.get("type")
+                if ptype == "text":
+                    text = part.get("text", "").replace("\\n", "\n")
+                    rendered = _env.from_string(text).render(**variables)
+                    rendered = rendered.strip("\n")
+                    result.append(Message(role=role, kind=Kind.TEXT, content=rendered))
+                elif ptype == "file":
+                    result.append(Message(role=role, kind="file", content=part.get("file")))
+        return result
+
+    def format(self, variables: Dict[str, Any], *, variant: str | None = None, ctx: Dict[str, Any] | None = None) -> tuple[list[Message], Variant]:
         start = perf_counter()
         try:
-            missing = [v for v in self.required_variables if v not in variables]
-            if missing:
-                raise KeyError(f"missing variables: {missing}")
-
-            messages = self._data.get("messages", [])
-
-            results: list[Message] = []
-            for msg in messages:
-                role = msg.get("role")
-                for part in msg.get("parts", []):
-                    ptype = part.get("type")
-                    if ptype == "text":
-                        text = part.get("text", "").replace("\\n", "\n")
-                        rendered = _env.from_string(text).render(**variables)
-                        # Preserve trailing spaces but remove leading/trailing newlines
-                        rendered = rendered.strip("\n")
-                        results.append(Message(role=role, kind=Kind.TEXT, content=rendered))
-                    elif ptype == "file":
-                        results.append(Message(role=role, kind="file", content=part.get("file")))
-            return results
+            ctx = ctx or variables
+            if variant is None:
+                variant = choose_variant(self, ctx) or next(iter(self.variants))
+            var = self.variants[variant]
+            messages = self._render_messages(var.messages, variables)
+            return messages, var
         finally:
-            _format_latency.labels(self.id, self.version).observe(perf_counter() - start)
+            _format_latency.labels(self.name, self.version).observe(perf_counter() - start)
 
     async def run(
         self,
-        variables: dict[str, Any],
-        tag: str | None,
+        variables: Dict[str, Any],
         client: ModelClient,
         *,
-        model_cfg: ModelConfig | None = None,
+        variant: str | None = None,
+        ctx: Dict[str, Any] | None = None,
         tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None,
+        stream: bool = True,
         **run_params: Any,
     ) -> AsyncGenerator[Message, None]:
-        """Stream results from executing the template via ``client``."""
-        messages = self.format(variables, tag)
-        params = RunParams(messages=messages, tool_params=tool_params, **run_params)
+        """Execute the chosen variant via ``client``."""
+        messages, var = self.format(variables, variant=variant, ctx=ctx)
+        params = RunParams(messages=messages, tool_params=tool_params, stream=stream, **run_params)
 
-        cfg = model_cfg or self.model_cfg
-        if cfg is not None:
-            client.cfg = cfg
+        client.cfg = var.model_cfg
 
         async for m in client.run(params):
             yield m

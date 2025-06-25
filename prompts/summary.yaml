@@ -1,15 +1,20 @@
-id: summary
-name: Text Summary
-version: 1.0
-labels: [summarization, text-processing]
-required_variables: [summary]
-messages:
-  - role: system
-    parts:
-      - type: text
-        text: |
-          Please summarize the following text.
-  - role: assistant
-    parts:
-      - type: text
-        text: "{{ summary }}" 
+name: summary
+description: Text summary
+version: "1.0"
+tags: [summarization, text-processing]
+variants:
+  default:
+    contains: []
+    model_config:
+      provider: litellm
+      model: gpt-3.5-turbo
+    messages:
+      - role: system
+        parts:
+          - type: text
+            text: |
+              Please summarize the following text.
+      - role: assistant
+        parts:
+          - type: text
+            text: "{{ summary }}"

@@ -17,7 +17,6 @@ provider‑specific protocols.
 - **📝 Jinja2 Templates**: First-class support for dynamic prompt templating with loops, filters, and safe sandboxing
 - **⚡ Async First**: Full asynchronous workflow with cloud-native observability (OpenTelemetry, Prometheus)
 - **🎯 A2A Message Format**: Standardized Agent-to-Agent communication with support for text, files, data, and tool interactions
-- **🧪 A/B Testing**: Built-in experiment framework with Unleash and GrowthBook adapters
 - **📂 Multi-Source Templates**: Load prompts from local files, remote registries, or in-memory storage
 
 ## Get started
@@ -68,8 +67,6 @@ examples.
 |----------|----------------------|-------|
 | **LiteLLM** | `LITELLM_API_KEY`, `LITELLM_ENDPOINT` | Universal LLM gateway |
 
-Prompti also supports SDK-level A/B experiments via the `ExperimentRegistry`
-interface with built-in **Unleash** and **GrowthBook** adapters.
 
 See `DESIGN.md` for a more detailed description of the architecture.
 
@@ -121,48 +118,46 @@ Messages consist of an array of parts. The three common part shapes are:
 ### Single message
 
 ```python
-from prompti.template import PromptTemplate
+from prompti.template import PromptTemplate, Variant
 from prompti.model_client import ModelConfig
 
 template = PromptTemplate(
-    id="hello",
     name="hello",
+    description="demo",
     version="1.0",
-    model_cfg=ModelConfig(provider="litellm", model="gpt-4o"),
-    yaml="""
-messages:
-  - role: user
-    parts:
-      - type: text
-        text: "Hello {{ name }}!"
-""",
+    variants={
+        "default": Variant(
+            contains=[],
+            model_config=ModelConfig(provider="litellm", model="gpt-4o"),
+            messages=[{"role": "user", "parts": [{"type": "text", "text": "Hello {{ name }}!"}]}],
+        )
+    },
 )
 
-print(template.format({"name": "World"})[0].content)
+msgs, _ = template.format({"name": "World"})
+print(msgs[0].content)
 ```
 
 ### Multi-message
 
 ```python
 multi = PromptTemplate(
-    id="analyze",
     name="analyze",
+    description="",
     version="1.0",
-    required_variables=["file_path"],
-    yaml="""
-messages:
-  - role: system
-    parts:
-      - type: text
-        text: "Analyze file"
-  - role: user
-    parts:
-      - type: file
-        file: "{{ file_path }}"
-""",
+    variants={
+        "default": Variant(
+            contains=[],
+            model_config=ModelConfig(provider="litellm", model="gpt-3.5-turbo"),
+            messages=[
+                {"role": "system", "parts": [{"type": "text", "text": "Analyze file"}]},
+                {"role": "user", "parts": [{"type": "file", "file": "{{ file_path }}"}]},
+            ],
+        )
+    },
 )
 
-msgs = multi.format({"file_path": "/tmp/document.pdf"})
+msgs, _ = multi.format({"file_path": "/tmp/document.pdf"})
 for m in msgs:
     print(m.role, m.kind, m.content)
 ```
@@ -176,56 +171,37 @@ tasks = [
 ]
 
 tmpl = PromptTemplate(
-    id="report",
     name="report",
+    description="",
     version="1.0",
-    yaml="""
-messages:
-  - role: user
-    parts:
-      - type: text
-        text: |
-          Task Report:
-          {% for t in tasks %}
-          - {{ t.name }} ({{ t.priority }})
-          {% endfor %}
-""",
+    variants={
+        "default": Variant(
+            contains=[],
+            model_config=ModelConfig(provider="litellm", model="gpt-3.5-turbo"),
+            messages=[
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "type": "text",
+                            "text": "|\n  Task Report:\n  {% for t in tasks %}\n  - {{ t.name }} ({{ t.priority }})\n  {% endfor %}",
+                        }
+                    ],
+                }
+            ],
+        )
+    },
 )
 
-print(tmpl.format({"tasks": tasks})[0].content)
+msgs, _ = tmpl.format({"tasks": tasks})
+print(msgs[0].content)
 ```
 
-### A/B test with GrowthBook
-
-```python
-import asyncio
-from prompti.engine import PromptEngine, Setting
-from prompti.experiment import GrowthBookRegistry
-from prompti.model_client import ModelConfig, create_client
-
-features = {"support_reply": {"id": "clarify", "variants": {"A": 1.0}}}
-reg = GrowthBookRegistry(features)
-
-async def main():
-    engine = PromptEngine.from_setting(Setting(template_paths=["./prompts"]))
-    cfg = ModelConfig(provider="litellm", model="gpt-4o")
-    async for msg in engine.run(
-        "support_reply",
-        {"name": "Ada", "issue": "login failed"},
-        None,
-        client=create_client(cfg),
-        registry=reg,
-    ):
-        print(msg.content)
-
-asyncio.run(main())
-```
 
 ## 🧪 Use Cases
 
 - **Multi-provider LLM Applications**: Build applications that can switch between different LLM providers seamlessly
 - **Dynamic Prompt Management**: Use Jinja2 templates for complex, data-driven prompt generation
-- **A/B Testing**: Experiment with different prompt versions and model configurations
 - **Agent Workflows**: Implement complex agent-to-agent communication patterns
 - **Production LLM Systems**: Deploy robust, observable LLM applications with proper error handling and monitoring
 

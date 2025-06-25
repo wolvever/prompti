@@ -7,7 +7,7 @@
 3. **不可变 Revision + 可变 Label**：`prod / dev / canary` 随时热切换。
 4. **完整 A2A 工作流**：`tool_use` / `tool_result` 均为标准 `kind`，无额外参数。
 5. **全链路异步 & 云原生可观测性**：OTel Trace、Prometheus Metric。
-6. **A/B 实验**：Gateway 或 SDK 双分流模式，标签化模板版本。
+6. **多变体选择**：模板可包含多个 variant，按上下文自动匹配。
 
 #### 1.2 非目标
 
@@ -31,12 +31,24 @@
 #### 3.1 PromptTemplate
 
 ```python
+class ModelConfig(BaseModel):
+    provider: str
+    model: str
+    temperature: float | None = None
+
+
+class Variant(BaseModel):
+    contains: list[str]
+    model_config: ModelConfig
+    messages: list[dict]
+
+
 class PromptTemplate(BaseModel):
-    id: str
     name: str
+    description: str
     version: str
-    jinja_source: str
-    tags: set[str] = set()
+    tags: list[str] = []
+    variants: dict[str, Variant]
 
     def format(self, variables: dict, tag: str | None = None) -> list[Message]: ...
     async def run(
@@ -55,8 +67,8 @@ class PromptTemplate(BaseModel):
 
 ```python
 class PromptEngine:
-    async def format(self, name: str, variables: dict, tags: str | None = None) -> list[Message]: ...
-    async def run(self, name: str, variables: dict, tags: str | None, client: ModelClient, *, tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None) -> AsyncGenerator[Message, None]: ...
+    async def format(self, name: str, variables: dict, *, variant: str | None = None) -> list[Message]: ...
+    async def run(self, name: str, variables: dict, client: ModelClient, *, variant: str | None = None, tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None) -> AsyncGenerator[Message, None]: ...
 ```
 
 * 多种 `TemplateLoader`（FS / HTTP / Memory）+ `async-lru` TTL 缓存。

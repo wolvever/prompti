@@ -4,7 +4,7 @@ import asyncio
 
 import yaml
 
-from ..template import PromptTemplate
+from ..template import PromptTemplate, Variant
 
 
 class LangfuseLoader:
@@ -26,10 +26,11 @@ class LangfuseLoader:
         meta = yaml.safe_load(yaml_blob)
         tmpl = PromptTemplate(
             id=name,
-            name=name,
+            name=meta.get("name", name),
+            description=meta.get("description", ""),
             version=str(prm.version),
-            labels=prm.labels,
+            tags=meta.get("tags", []),
+            variants={k: Variant(**v) for k, v in meta.get("variants", {}).items()},
             yaml=yaml_blob,
-            required_variables=meta.get("required_variables", []),
         )
         return tmpl.version, tmpl

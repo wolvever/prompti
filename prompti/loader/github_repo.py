@@ -6,7 +6,7 @@ import codecs
 import httpx
 import yaml
 
-from ..template import PromptTemplate
+from ..template import PromptTemplate, Variant
 
 
 class GitHubRepoLoader:
@@ -30,9 +30,11 @@ class GitHubRepoLoader:
         meta = yaml.safe_load(text)
         tmpl = PromptTemplate(
             id=name,
-            name=name,
+            name=meta.get("name", name),
+            description=meta.get("description", ""),
             version=self.branch,
-            labels=meta.get("labels", []),
+            tags=meta.get("tags", []),
+            variants={k: Variant(**v) for k, v in meta.get("variants", {}).items()},
             yaml=text,
         )
         return tmpl.version, tmpl
