@@ -33,13 +33,6 @@ def _ctx_to_flat(ctx: Dict[str, Any]) -> str:
     return json.dumps(ctx, separators=(",", ":")).lower()
 
 
-def choose_variant(tmpl: "PromptTemplate", ctx: Dict[str, Any]) -> str | None:
-    """Return the first variant id whose tokens all appear in ``ctx``."""
-    haystack = _ctx_to_flat(ctx)
-    for vid, var in tmpl.variants.items():
-        if all(tok.lower() in haystack for tok in var.contains):
-            return vid
-    return None
 
 
 class Variant(BaseModel):
@@ -61,6 +54,14 @@ class PromptTemplate(BaseModel):
     variants: dict[str, Variant]
     yaml: str = ""
     id: str | None = None
+
+    def choose_variant(self, ctx: Dict[str, Any]) -> str | None:
+        """Return the first variant id whose tokens all appear in ``ctx``."""
+        haystack = _ctx_to_flat(ctx)
+        for vid, var in self.variants.items():
+            if all(tok.lower() in haystack for tok in var.contains):
+                return vid
+        return None
 
     @model_validator(mode="after")
     def _snake_names(self) -> "PromptTemplate":
@@ -102,7 +103,7 @@ class PromptTemplate(BaseModel):
         try:
             ctx = ctx or variables
             if variant is None:
-                variant = choose_variant(self, ctx) or next(iter(self.variants))
+                variant = self.choose_variant(ctx) or next(iter(self.variants))
             var = self.variants[variant]
             messages = self._render_messages(var.messages, variables)
             return messages, var

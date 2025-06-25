@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from .loader import FileSystemLoader, HTTPLoader, MemoryLoader, TemplateLoader
 from .message import Message
 from .model_client import ModelClient, RunParams, ToolParams, ToolSpec
-from .template import PromptTemplate, choose_variant
+from .template import PromptTemplate
 
 _tracer = trace.get_tracer(__name__)
 
@@ -68,7 +68,7 @@ class PromptEngine:
         ctx = ctx or variables
 
         if variant is None:
-            variant = choose_variant(tmpl, ctx) or next(iter(tmpl.variants))
+            variant = tmpl.choose_variant(ctx) or next(iter(tmpl.variants))
 
         messages, var = tmpl.format(variables, variant=variant, ctx=ctx)
         params = RunParams(messages=messages, tool_params=tool_params, **run_params)
