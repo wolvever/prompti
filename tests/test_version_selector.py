@@ -60,10 +60,11 @@ class TestVersionSelectorParsing:
         with pytest.raises(ValueError, match="Version selector cannot be empty"):
             TemplateLoader._parse_version_selector("")
 
-    def test_parse_empty_version_spec(self):
-        """Test parsing selector with empty version spec raises error."""
-        with pytest.raises(ValueError, match="Version specification cannot be empty"):
-            TemplateLoader._parse_version_selector("#prod")
+    def test_parse_tag_only_selector(self):
+        """Test parsing selector that only specifies tags."""
+        version_spec, tags = TemplateLoader._parse_version_selector("#prod")
+        assert version_spec == ""
+        assert tags == ["prod"]
 
     def test_parse_tags_with_whitespace(self):
         """Test parsing tags with extra whitespace."""
@@ -300,6 +301,18 @@ class TestVersionSelectionStatic:
         # Impossible combination
         selected = TemplateLoader.select_version(versions, "1.x#prod+stable+lts+nonexistent")
         assert selected is None
+
+    def test_select_tag_only(self):
+        """Select highest version when only a tag is specified."""
+        versions = [
+            VersionEntry(id="1.0.0", tags=["prod"]),
+            VersionEntry(id="1.1.0", tags=["beta"]),
+            VersionEntry(id="2.0.0", tags=["prod"]),
+        ]
+
+        selected = TemplateLoader.select_version(versions, "#prod")
+        assert selected is not None
+        assert selected.id == "2.0.0"
 
 
 class TestVersionSelectorFormats:

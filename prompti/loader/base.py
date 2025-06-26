@@ -129,7 +129,15 @@ class TemplateLoader(ABC):
             return None
 
         # Handle different version spec formats
-        if TemplateLoader._is_version_range(version_spec):
+        if version_spec == "":
+            # Return the highest version among candidates
+            sorted_candidates = sorted(
+                candidates,
+                key=lambda c: TemplateLoader._parse_version_for_sorting(c.id),
+                reverse=True,
+            )
+            return sorted_candidates[0] if sorted_candidates else None
+        elif TemplateLoader._is_version_range(version_spec):
             return TemplateLoader._select_from_range(candidates, version_spec)
         elif version_spec.endswith(".x"):
             return TemplateLoader._select_from_wildcard(candidates, version_spec)
@@ -168,7 +176,7 @@ class TemplateLoader(ABC):
             required_tags = []
 
         version_spec = version_spec.strip()
-        if not version_spec:
+        if not version_spec and not required_tags:
             raise ValueError("Version specification cannot be empty")
 
         return version_spec, required_tags
