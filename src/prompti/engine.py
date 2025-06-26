@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from async_lru import alru_cache
 from opentelemetry import trace
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .loader import (
     FileSystemLoader,
@@ -98,7 +98,8 @@ class PromptEngine:
             selector=ctx,
             format="a2a",
         )
-        params = RunParams(messages=messages, tool_params=tool_params, **run_params)
+        # format="a2a" always returns list[Message], so cast for type checker
+        params = RunParams(messages=cast(list[Message], messages), tool_params=tool_params, **run_params)
 
         with _tracer.start_as_current_span(
             "prompt.run",
@@ -134,9 +135,7 @@ class PromptEngine:
 class Setting(BaseModel):
     """Configuration options for :class:`PromptEngine`."""
 
-    model_config = {
-        "arbitrary_types_allowed": True,
-    }
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     template_paths: list[Path] = [Path("./prompts")]
     cache_ttl: int = 300

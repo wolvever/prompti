@@ -8,7 +8,6 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 import httpx
-import litellm
 
 from ..message import Message
 from .base import ModelClient, ModelConfig, RunParams, ToolChoice, ToolParams, ToolSpec
@@ -21,6 +20,13 @@ class LiteLLMClient(ModelClient):
 
     def __init__(self, cfg: ModelConfig, client: httpx.AsyncClient | None = None, is_debug: bool = False) -> None:
         """Instantiate the client with configuration and optional HTTP client."""
+        try:
+            import litellm  # noqa: F401
+        except ImportError as e:
+            raise ImportError(
+                "litellm is required for LiteLLMClient. Install with: pip install 'prompti[litellm]'"
+            ) from e
+
         super().__init__(cfg, client, is_debug=is_debug)
         self.api_url = cfg.api_url
         self.api_key_var = cfg.api_key_var
@@ -32,6 +38,12 @@ class LiteLLMClient(ModelClient):
         p: RunParams,
     ) -> AsyncGenerator[Message, None]:
         """Translate A2A messages and execute via :func:`litellm.acompletion`."""
+        try:
+            import litellm
+        except ImportError as e:
+            raise ImportError(
+                "litellm is required for LiteLLMClient. Install with: pip install 'prompti[litellm]'"
+            ) from e
         is_claude = self.cfg.model.startswith("claude")
         oa_messages: list[dict[str, Any]] = []
         claude_msgs: list[dict[str, Any]] = []
@@ -50,9 +62,7 @@ class LiteLLMClient(ModelClient):
                 elif m.kind in ("image", "image_url"):
                     blocks.append({"type": "image", "source": {"type": "url", "url": m.content}})
                 elif m.kind == "tool_use":
-                    data = (
-                        m.content if isinstance(m.content, dict) else json.loads(m.content)
-                    )
+                    data = m.content if isinstance(m.content, dict) else json.loads(m.content)
                     blocks.append(
                         {
                             "type": "tool_use",

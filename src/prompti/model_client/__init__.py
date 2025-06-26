@@ -12,7 +12,6 @@ from .base import (
     ToolSpec,
 )
 from .factory import create_client
-from .litellm import LiteLLMClient
 
 __all__ = [
     "ModelConfig",
@@ -22,6 +21,13 @@ __all__ = [
     "ToolParams",
     "ToolChoice",
     "create_client",
-    "LiteLLMClient",
     "Message",
 ]
+
+# Optional import for LiteLLMClient
+try:
+    from .litellm import LiteLLMClient
+
+    __all__.append("LiteLLMClient")
+except ImportError:
+    pass
