@@ -1,3 +1,5 @@
+"""Fetch prompt templates from a remote HTTP service."""
+
 import httpx
 import yaml
 

@@ -1,3 +1,5 @@
+"""Filesystem-based loader for prompt templates."""
+
 from pathlib import Path
 
 import yaml

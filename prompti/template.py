@@ -1,8 +1,11 @@
 """Prompt template with variant selection and Jinja rendering."""
 
+from __future__ import annotations
+
 import json
 import re
 from time import perf_counter
+from typing import Any
 
 import yaml
 from jinja2 import StrictUndefined

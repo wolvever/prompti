@@ -1,3 +1,5 @@
+"""Load templates stored in a local Git repository."""
+
 from pathlib import Path
 
 import yaml

@@ -1,3 +1,5 @@
+"""Loader that fetches prompt templates from the Agenta registry."""
+
 import asyncio
 
 import yaml

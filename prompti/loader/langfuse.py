@@ -1,3 +1,5 @@
+"""Load prompt templates using the Langfuse SDK."""
+
 import asyncio
 
 import yaml
