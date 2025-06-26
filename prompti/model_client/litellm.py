@@ -18,6 +18,7 @@ class LiteLLMClient(ModelClient):
     provider = "litellm"
 
     def __init__(self, cfg: ModelConfig, client: httpx.AsyncClient | None = None, is_debug: bool = False) -> None:
+        """Instantiate the client with configuration and optional HTTP client."""
         super().__init__(cfg, client, is_debug=is_debug)
         self.api_url = cfg.api_url
         self.api_key_var = cfg.api_key_var
@@ -29,7 +30,6 @@ class LiteLLMClient(ModelClient):
         p: RunParams,
     ) -> AsyncGenerator[Message, None]:
         """Translate A2A messages and execute via :func:`litellm.acompletion`."""
-
         is_claude = self.cfg.model.startswith("claude")
         oa_messages: list[dict[str, Any]] = []
         claude_msgs: list[dict[str, Any]] = []

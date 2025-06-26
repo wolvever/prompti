@@ -133,7 +133,6 @@ class ModelClient:
         self, cfg: ModelConfig, client: httpx.AsyncClient | None = None, is_debug: bool = False, **_: Any
     ) -> None:
         """Create the client with static :class:`ModelConfig` and optional HTTP client."""
-
         self.cfg = cfg
         self._client = client or httpx.AsyncClient(http2=True)
         self._tracer = trace.get_tracer(__name__)

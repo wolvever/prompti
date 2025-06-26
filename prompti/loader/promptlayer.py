@@ -15,6 +15,7 @@ class PromptLayerLoader(TemplateLoader):
     URL = "https://api.promptlayer.com/prompt-templates"
 
     def __init__(self, api_key: str, client: httpx.AsyncClient | None = None) -> None:
+        """Create the loader with API key and optional HTTP client."""
         self.api_key = api_key
         self.client = client or httpx.AsyncClient()
 

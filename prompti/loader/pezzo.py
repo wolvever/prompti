@@ -10,6 +10,7 @@ class PezzoLoader(TemplateLoader):
     """Retrieve prompts via the Pezzo client."""
 
     def __init__(self, project: str) -> None:
+        """Initialize the loader for the given Pezzo project."""
         from pezzo import PezzoClient
 
         self.client = PezzoClient(project=project)

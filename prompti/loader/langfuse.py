@@ -17,6 +17,7 @@ class LangfuseLoader(TemplateLoader):
         secret_key: str,
         base_url: str = "https://cloud.langfuse.com",
     ) -> None:
+        """Initialize the loader with API credentials."""
         from langfuse import get_client
 
         self.client = get_client(public_key=public_key, secret_key=secret_key, base_url=base_url)
