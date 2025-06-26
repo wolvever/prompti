@@ -60,6 +60,9 @@ select = [
 "tests/*" = ["S101", "B018"]
 "examples/*" = ["B018"]
 
+[tool.mypy]
+ignore_missing_imports = true
+
 [tool.pyright]
 exclude = ["**/__pycache__"]
 reportMissingImports = "warning"

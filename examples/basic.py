@@ -9,7 +9,6 @@ from prompti.model_client import ModelConfig, create_client
 
 async def main() -> None:
     """Render ``support_reply`` and print the response."""
-
     engine = PromptEngine.from_setting(Setting())
     cfg = ModelConfig(
         provider="litellm",
