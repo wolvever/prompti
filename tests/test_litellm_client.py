@@ -44,7 +44,10 @@ async def test_litellm_openai_tool_call():
         client = LiteLLMClient(cfg)
         params = RunParams(
             messages=[Message(role="user", kind="text", content="What time is it?")],
-            tool_params=ToolParams(tools=[GET_TIME_TOOL], choice={"type": "function", "function": {"name": "get_time"}}),
+            tool_params=ToolParams(
+                tools=[GET_TIME_TOOL],
+                choice={"type": "function", "function": {"name": "get_time"}},
+            ),
             stream=False,
         )
         out = [m async for m in client.run(params)]

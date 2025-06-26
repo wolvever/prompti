@@ -5,7 +5,7 @@ from pathlib import Path
 import yaml
 
 from ..template import PromptTemplate, Variant
-from .base import TemplateLoader, VersionEntry, TemplateNotFoundError
+from .base import TemplateLoader, TemplateNotFoundError, VersionEntry
 
 
 class LocalGitRepoLoader(TemplateLoader):
@@ -50,8 +50,8 @@ class LocalGitRepoLoader(TemplateLoader):
             tree = commit.tree
             blob = tree[f"prompts/{name}.yaml"]
             text = blob.data.decode()
-        except KeyError:
-            raise TemplateNotFoundError(f"Template {name} not found")
+        except KeyError as err:
+            raise TemplateNotFoundError(f"Template {name} not found") from err
 
         meta = yaml.safe_load(text)
         tmpl = PromptTemplate(

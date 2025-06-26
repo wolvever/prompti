@@ -2,12 +2,10 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
-import httpx
 import pytest
 
 from prompti.experiment import GrowthBookRegistry, UnleashRegistry, bucket
-from prompti.message import Message
-from prompti.model_client import ModelClient, ModelConfig
+from prompti.model_client import ModelConfig
 from prompti.template import PromptTemplate, Variant
 
 

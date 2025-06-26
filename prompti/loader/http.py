@@ -4,7 +4,7 @@ import httpx
 import yaml
 
 from ..template import PromptTemplate, Variant
-from .base import TemplateLoader, VersionEntry, TemplateNotFoundError
+from .base import TemplateLoader, TemplateNotFoundError, VersionEntry
 
 
 class HTTPLoader(TemplateLoader):
