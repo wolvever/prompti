@@ -113,44 +113,63 @@ class PromptTemplate(BaseModel):
         start = perf_counter()
         try:
             ctx = ctx or variables
-            if variant is None:
-                variant = self.choose_variant(ctx) or next(iter(self.variants))
+            variant = variant or self.choose_variant(ctx) or next(iter(self.variants))
             var = self.variants[variant]
             fmt = format.lower()
-            if fmt in {"openai", "litellm"}:
-                oa_messages: list[dict] = []
 
-                def _part_to_str(part: dict) -> str:
-                    if part.get("type") == "text":
-                        txt = part.get("text", "").replace("\\n", "\n")
-                        return _env.from_string(txt).render(**variables)
-                    if part.get("type") == "file":
-                        return f"[FILE]({part.get('file')})"
-                    raise ValueError(f"Unsupported part type: {part.get('type')}")
+            formatter_map = {
+                "openai": self._format_openai,
+                "litellm": self._format_openai,
+                "claude": self._format_claude,
+                "a2a": self._format_a2a,
+            }
 
-                for msg in var.messages:
-                    parts = [_part_to_str(p) for p in msg.get("parts", [])]
-                    oa_messages.append({"role": msg.get("role"), "content": "\n".join(parts).strip("\n")})
-                return oa_messages, var
-            if fmt == "claude":
-                claude_msgs: list[dict] = []
+            if fmt not in formatter_map:
+                raise ValueError(f"Unknown format: {format}")
 
-                def _part_to_block(part: dict) -> dict:
-                    if part.get("type") == "text":
-                        txt = part.get("text", "").replace("\\n", "\n")
-                        rendered = _env.from_string(txt).render(**variables)
-                        return {"type": "text", "text": rendered}
-                    if part.get("type") == "file":
-                        return {"type": "image", "source": {"type": "url", "url": part.get("file")}}
-                    raise ValueError(f"Unsupported part type: {part.get('type')}")
-
-                for msg in var.messages:
-                    blocks = [_part_to_block(p) for p in msg.get("parts", [])]
-                    claude_msgs.append({"role": msg.get("role"), "content": blocks})
-                return claude_msgs, var
-            if fmt == "a2a":
-                messages = self._render_messages(var.messages, variables)
-                return messages, var
-            raise ValueError(f"Unknown format: {format}")
+            return formatter_map[fmt](var, variables), var
         finally:
             _format_latency.labels(self.name, self.version).observe(perf_counter() - start)
+
+    def _format_openai(self, variant: Variant, variables: dict[str, Any]) -> list[dict]:
+        """Format messages for OpenAI API format."""
+        return [
+            {
+                "role": msg.get("role"),
+                "content": "\n".join(self._render_part_as_text(p, variables) for p in msg.get("parts", [])).strip("\n"),
+            }
+            for msg in variant.messages
+        ]
+
+    def _format_claude(self, variant: Variant, variables: dict[str, Any]) -> list[dict]:
+        """Format messages for Claude API format."""
+        return [
+            {
+                "role": msg.get("role"),
+                "content": [self._render_part_as_block(p, variables) for p in msg.get("parts", [])],
+            }
+            for msg in variant.messages
+        ]
+
+    def _format_a2a(self, variant: Variant, variables: dict[str, Any]) -> list[Message]:
+        """Format messages as internal Message objects."""
+        return self._render_messages(variant.messages, variables)
+
+    def _render_part_as_text(self, part: dict, variables: dict[str, Any]) -> str:
+        """Render a message part as plain text."""
+        if part.get("type") == "text":
+            txt = part.get("text", "").replace("\\n", "\n")
+            return _env.from_string(txt).render(**variables)
+        if part.get("type") == "file":
+            return f"[FILE]({part.get('file')})"
+        raise ValueError(f"Unsupported part type: {part.get('type')}")
+
+    def _render_part_as_block(self, part: dict, variables: dict[str, Any]) -> dict:
+        """Render a message part as a structured block."""
+        if part.get("type") == "text":
+            txt = part.get("text", "").replace("\\n", "\n")
+            rendered = _env.from_string(txt).render(**variables)
+            return {"type": "text", "text": rendered}
+        if part.get("type") == "file":
+            return {"type": "image", "source": {"type": "url", "url": part.get("file")}}
+        raise ValueError(f"Unsupported part type: {part.get('type')}")
