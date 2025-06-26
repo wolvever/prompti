@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 from .engine import PromptEngine
 from .experiment import (
     ExperimentRegistry,
@@ -69,10 +68,11 @@ __all__ = [
     "LocalGitRepoLoader",
 ]
 
-# Optional imports
+# Optional imports - only available when litellm is installed
 try:
-    from .model_client import LiteLLMClient
+    from .model_client import LiteLLMClient  # noqa: F401
 
     __all__.append("LiteLLMClient")
 except ImportError:
+    # LiteLLMClient not available - litellm dependency not installed
     pass

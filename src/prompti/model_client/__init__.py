@@ -26,7 +26,7 @@ __all__ = [
 
 # Optional import for LiteLLMClient
 try:
-    from .litellm import LiteLLMClient
+    from .litellm import LiteLLMClient  # noqa: F401
 
     __all__.append("LiteLLMClient")
 except ImportError:
