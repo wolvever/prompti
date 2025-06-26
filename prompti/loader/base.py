@@ -31,6 +31,7 @@ class TemplateLoader(ABC):
         -------
         List[VersionEntry]
             List of available versions with their IDs and tags.
+
         """
         raise NotImplementedError
 
@@ -49,6 +50,7 @@ class TemplateLoader(ABC):
         -------
         PromptTemplate
             The template instance.
+
         """
         raise NotImplementedError
 
@@ -74,6 +76,7 @@ class TemplateLoader(ABC):
         -------
         PromptTemplate
             The resolved template instance.
+
         """
         # Get all available versions
         versions = await self.list_versions(name)
@@ -102,6 +105,7 @@ class TemplateLoader(ABC):
         -------
         VersionEntry | None
             The best matching version, or None if no match found.
+
         """
         if not versions:
             return None
@@ -143,6 +147,7 @@ class TemplateLoader(ABC):
         -------
         tuple[str, List[str]]
             Version specification and list of required tags.
+
         """
         if not selector:
             raise ValueError("Version selector cannot be empty")

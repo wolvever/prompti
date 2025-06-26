@@ -14,6 +14,7 @@ class GitHubRepoLoader(TemplateLoader):
     """Fetch prompt files from a GitHub repository."""
 
     def __init__(self, repo: str, branch: str = "main", token: str | None = None, root: str = "prompts") -> None:
+        """Initialize the loader with repository details."""
         self.repo = repo
         self.branch = branch
         self.root = root

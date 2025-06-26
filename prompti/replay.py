@@ -32,6 +32,7 @@ class ModelClientRecorder(ModelClient):
         session_id: str,
         output_dir: str | Path | None = None,
     ) -> None:
+        """Wrap ``client`` and log all interactions under ``session_id``."""
         super().__init__(client.cfg, client=client._client)
         self._wrapped = client
         self.session_id = session_id
@@ -78,6 +79,7 @@ class ModelClientRecorder(ModelClient):
                 raise
 
     async def close(self) -> None:
+        """Close the underlying client."""
         await self._wrapped.close()
 
 
@@ -86,7 +88,6 @@ class ReplayEngine:
 
     def __init__(self, client_factory: Callable[[str], ModelClient]):
         """Create with a ``client_factory`` mapping provider -> ModelClient."""
-
         self._client_factory = client_factory
         self._clients: dict[str, ModelClient] = {}
 
@@ -101,6 +102,7 @@ class ReplayEngine:
         up_to_step: int | None = None,
         patch: dict[int, list[Message]] | None = None,
     ) -> AsyncGenerator[Message, None]:
+        """Replay a recorded session and optionally patch messages."""
         patch = patch or {}
         status = "ok"
         try:

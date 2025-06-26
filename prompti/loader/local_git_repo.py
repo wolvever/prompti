@@ -12,6 +12,7 @@ class LocalGitRepoLoader(TemplateLoader):
     """Read prompt files from a local Git repository."""
 
     def __init__(self, repo_path: Path, ref: str = "HEAD") -> None:
+        """Create the loader pointing at ``repo_path`` and ``ref``."""
         import pygit2
 
         self.repo = pygit2.Repository(str(repo_path))

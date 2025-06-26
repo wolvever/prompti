@@ -12,6 +12,7 @@ class AgentaLoader(TemplateLoader):
     """Fetch templates from Agenta via the SDK."""
 
     def __init__(self, app_slug: str) -> None:
+        """Create a loader for the given Agenta application slug."""
         import agenta as ag
 
         ag.init()
