@@ -213,7 +213,7 @@ template = await loader.load("user-greeting", "1.x#prod")
 template = await loader.load("user-greeting", "1.2.x#prod+exp_a")
 
 # 加载指定范围内的版本
-template = await loader.load("user-greeting", ">=1.2.0 <1.5.0")
+template = await loader.load("user-greeting", "#prod")
 ```
 
 ---

@@ -24,11 +24,11 @@ class FileModelConfigLoader(ModelConfigLoader):
     """Load a model configuration from a local YAML or JSON file."""
 
     def __init__(self, path: str | Path) -> None:
-        """Create a loader that reads from the given ``path``."""
+        """Initialize the loader with a path to a local YAML or JSON file."""
         self.path = Path(path)
 
     def load(self) -> ModelConfig:
-        """Parse the file and return the resulting configuration."""
+        """Load a model configuration from a local YAML or JSON file."""
         text = self.path.read_text()
         data = yaml.safe_load(text)
         if not isinstance(data, dict):
@@ -40,12 +40,12 @@ class HTTPModelConfigLoader(ModelConfigLoader):
     """Fetch model configuration from an HTTP endpoint returning JSON."""
 
     def __init__(self, url: str, client: httpx.Client | None = None) -> None:
-        """Create a loader that fetches configuration from ``url`` using ``client``."""
+        """Initialize the loader with an HTTP endpoint returning JSON."""
         self.url = url
         self.client = client or httpx.Client()
 
     def load(self) -> ModelConfig:
-        """Retrieve the configuration over HTTP and return it."""
+        """Fetch model configuration from an HTTP endpoint returning JSON."""
         resp = self.client.get(self.url)
         resp.raise_for_status()
         data = resp.json()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 from .engine import PromptEngine
 from .experiment import (
     ExperimentRegistry,
@@ -25,7 +26,6 @@ from .loader import (
 )
 from .message import Kind, Message
 from .model_client import (
-    LiteLLMClient,
     ModelClient,
     ModelConfig,
     RunParams,
@@ -48,7 +48,6 @@ __all__ = [
     "ToolParams",
     "ToolChoice",
     "create_client",
-    "LiteLLMClient",
     "ReplayEngine",
     "ModelClientRecorder",
     "ExperimentRegistry",
@@ -69,3 +68,11 @@ __all__ = [
     "GitHubRepoLoader",
     "LocalGitRepoLoader",
 ]
+
+# Optional imports
+try:
+    from .model_client import LiteLLMClient
+
+    __all__.append("LiteLLMClient")
+except ImportError:
+    pass

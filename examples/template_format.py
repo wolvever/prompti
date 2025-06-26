@@ -3,13 +3,16 @@
 import asyncio
 import os
 
-import litellm
-
 from prompti.engine import PromptEngine, Setting
 
 
 async def main() -> None:
     """Render ``support_reply`` template and send via ``litellm``."""
+    try:
+        import litellm
+    except ImportError as e:
+        raise ImportError("litellm is required for this example. Install with: pip install 'prompti[litellm]'") from e
+
     engine = PromptEngine.from_setting(Setting())
 
     # Format the template directly as OpenAI messages and send
