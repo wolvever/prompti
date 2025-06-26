@@ -1,14 +1,11 @@
 """Core engine that resolves templates and executes them with model clients."""
 
-from __future__ import annotations
-
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from async_lru import alru_cache
 from opentelemetry import trace
-
 from pydantic import BaseModel
 
 from .loader import FileSystemLoader, HTTPLoader, MemoryLoader, TemplateLoader
@@ -30,8 +27,12 @@ class PromptEngine:
 
     async def _resolve_impl(self, name: str, tags: str | None) -> PromptTemplate:
         for loader in self._loaders:
-            version, tmpl = await loader.load(name, tags)
-            if tmpl:
+            versions = await loader.list_versions(name)
+            if versions:
+                # For backward compatibility, just use the first available version
+                # In the future, this could be enhanced with version selection logic
+                version = versions[0].id
+                tmpl = await loader.get_template(name, version)
                 return tmpl
         raise FileNotFoundError(name)
 
@@ -42,10 +43,10 @@ class PromptEngine:
     async def format(
         self,
         template_name: str,
-        variables: Dict[str, Any],
+        variables: dict[str, Any],
         *,
         variant: str | None = None,
-        ctx: Dict[str, Any] | None = None,
+        ctx: dict[str, Any] | None = None,
     ) -> list[Message]:
         """Return formatted messages for ``template_name``."""
         tmpl = await self._resolve(template_name, None)
@@ -55,11 +56,11 @@ class PromptEngine:
     async def run(
         self,
         template_name: str,
-        variables: Dict[str, Any],
+        variables: dict[str, Any],
         client: ModelClient,
         *,
         variant: str | None = None,
-        ctx: Dict[str, Any] | None = None,
+        ctx: dict[str, Any] | None = None,
         tool_params: ToolParams | list[ToolSpec] | list[dict] | None = None,
         **run_params: Any,
     ) -> AsyncGenerator[Message, None]:
@@ -70,9 +71,7 @@ class PromptEngine:
         if variant is None:
             variant = tmpl.choose_variant(ctx) or next(iter(tmpl.variants))
 
-        messages, var = tmpl.format(
-            variables, variant=variant, ctx=ctx, format="a2a"
-        )
+        messages, var = tmpl.format(variables, variant=variant, ctx=ctx, format="a2a")
         params = RunParams(messages=messages, tool_params=tool_params, **run_params)
 
         with _tracer.start_as_current_span(

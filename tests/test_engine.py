@@ -1,12 +1,13 @@
-import pytest
-
 from pathlib import Path
+
+import pytest
 
 from prompti.engine import PromptEngine
 from prompti.loader import FileSystemLoader, MemoryLoader, TemplateLoader
-from prompti.template import PromptTemplate, Variant
-from prompti.model_client import ModelClient, ModelConfig, RunParams
 from prompti.message import Message
+from prompti.model_client import ModelClient, ModelConfig, RunParams
+from prompti.template import PromptTemplate, Variant
+
 
 class DummyClient(ModelClient):
     provider = "dummy"
@@ -33,12 +34,9 @@ variants:
     engine = PromptEngine([MemoryLoader({"x": {"yaml": yaml_text}})])
     client = DummyClient(ModelConfig(provider="dummy", model="y"))
 
-    out = [
-        m async for m in engine.run("x", {}, client=client, variant="base", stream=False)
-    ]
+    out = [m async for m in engine.run("x", {}, client=client, variant="base", stream=False)]
     assert out[0].content == "ok"
     assert client.cfg == ModelConfig(provider="dummy", model="x")
-
 
 
 @pytest.mark.asyncio
@@ -52,13 +50,19 @@ async def test_load_returns_template():
 
 @pytest.mark.asyncio
 async def test_load_caches_result():
+    from prompti.loader.base import VersionEntry
+
     class CountingLoader(TemplateLoader):
         def __init__(self):
             self.calls = 0
 
-        async def load(self, name: str, tags: str | None):
+        async def list_versions(self, name: str) -> list[VersionEntry]:
+            return [VersionEntry(id="1", tags=[])]
+
+        async def get_template(self, name: str, version: str) -> PromptTemplate:
             self.calls += 1
-            return "1", PromptTemplate(
+            return PromptTemplate(
+                id=name,
                 name=name,
                 description="",
                 version="1",
@@ -69,6 +73,7 @@ async def test_load_caches_result():
                         messages=[],
                     )
                 },
+                yaml="",
             )
 
     loader = CountingLoader()
@@ -84,4 +89,3 @@ async def test_load_missing_raises():
     engine = PromptEngine([FileSystemLoader(Path("./prompts"))])
     with pytest.raises(FileNotFoundError):
         await engine.load("nonexistent")
-

@@ -1,10 +1,11 @@
-import httpx
-from unittest.mock import patch
 import json
-import pytest
+from unittest.mock import patch
 
+import httpx
+import pytest
 from mock_server import MockServer
-from prompti.model_client import LiteLLMClient, ModelConfig, RunParams, ToolParams, ToolSpec, Message
+
+from prompti.model_client import LiteLLMClient, Message, ModelConfig, RunParams, ToolParams, ToolSpec
 
 GET_TIME_TOOL = ToolSpec(
     name="get_time",

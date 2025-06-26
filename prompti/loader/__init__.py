@@ -1,7 +1,7 @@
 """Template loaders package."""
 
-from .base import TemplateLoader
 from .agenta import AgentaLoader
+from .base import TemplateLoader
 from .filesystem import FileSystemLoader
 from .github_repo import GitHubRepoLoader
 from .http import HTTPLoader

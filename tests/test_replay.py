@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from prompti.model_client import Message, ModelConfig, LiteLLMClient, RunParams
+from prompti.model_client import LiteLLMClient, Message, ModelConfig, RunParams
 from prompti.replay import ModelClientRecorder, ReplayEngine
 
 

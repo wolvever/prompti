@@ -9,7 +9,6 @@ from .experiment import (
     bucket,
 )
 from .loader import (
-    TemplateLoader,
     AgentaLoader,
     FileSystemLoader,
     GitHubRepoLoader,
@@ -19,6 +18,7 @@ from .loader import (
     MemoryLoader,
     PezzoLoader,
     PromptLayerLoader,
+    TemplateLoader,
 )
 from .message import Kind, Message
 from .model_client import (

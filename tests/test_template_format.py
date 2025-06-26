@@ -1,15 +1,19 @@
-import pytest
 from pathlib import Path
 
+import pytest
+
 from prompti.loader import FileSystemLoader
-from prompti.template import PromptTemplate, Variant
 from prompti.model_client import ModelConfig
+from prompti.template import PromptTemplate, Variant
 
 
 @pytest.mark.asyncio
 async def test_load_from_file_has_expected_fields():
     loader = FileSystemLoader(Path("./prompts"))
-    version, tmpl = await loader.load("summary", None)
+    versions = await loader.list_versions("summary")
+    assert len(versions) > 0
+    version = versions[0].id
+    tmpl = await loader.get_template("summary", version)
     assert version == "1.0"
     assert tmpl.name == "summary"
     assert tmpl.version == "1.0"
@@ -79,8 +83,8 @@ def test_complex_jinja_multi_message():
                                 "type": "text",
                                 "text": (
                                     "Task Report:\n"
-                                    "{% for t in tasks %}"\
-                                    "{{ '- ' + t.name }} ({{ t.priority }})\n"\
+                                    "{% for t in tasks %}"
+                                    "{{ '- ' + t.name }} ({{ t.priority }})\n"
                                     "{% endfor %}"
                                 ),
                             }
@@ -114,9 +118,7 @@ def test_format_openai_single():
             )
         },
     )
-    msgs, _ = template.format(
-        {"name": "World"}, variant="base", format="openai"
-    )
+    msgs, _ = template.format({"name": "World"}, variant="base", format="openai")
     assert msgs == [{"role": "user", "content": "Hello World!"}]
 
 
@@ -157,9 +159,7 @@ def test_format_openai_with_file_legacy(tmp_path: Path):
             )
         },
     )
-    msgs, _ = template.format(
-        {"file_path": str(file_path)}, variant="base", format="openai"
-    )
+    msgs, _ = template.format({"file_path": str(file_path)}, variant="base", format="openai")
     assert msgs[0]["content"] == "Analyze file"
     assert f"[FILE]({file_path})" == msgs[1]["content"]
 
@@ -234,4 +234,3 @@ def test_format_claude_with_file(tmp_path: Path):
     msgs, _ = template.format({"file_path": str(file_path)}, variant="base", format="claude")
     assert msgs[0]["content"][0]["text"] == "Analyze file"
     assert msgs[1]["content"][0]["source"]["url"] == str(file_path)
-

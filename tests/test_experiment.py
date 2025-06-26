@@ -6,9 +6,9 @@ import httpx
 import pytest
 
 from prompti.experiment import GrowthBookRegistry, UnleashRegistry, bucket
-from prompti.template import Variant, PromptTemplate
 from prompti.message import Message
 from prompti.model_client import ModelClient, ModelConfig
+from prompti.template import PromptTemplate, Variant
 
 
 def test_bucket_deterministic():
