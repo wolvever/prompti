@@ -101,7 +101,7 @@ class PromptTemplate(BaseModel):
         variables: dict[str, Any],
         *,
         variant: str | None = None,
-        ctx: dict[str, Any] | None = None,
+        selector: dict[str, Any] | None = None,
         format: str = "openai",
     ) -> tuple[list[Message] | list[dict], Variant]:
         """Render the template and return messages in the requested format.
@@ -112,8 +112,8 @@ class PromptTemplate(BaseModel):
         """
         start = perf_counter()
         try:
-            ctx = ctx or variables
-            variant = variant or self.choose_variant(ctx) or next(iter(self.variants))
+            selector = selector or variables
+            variant = variant or self.choose_variant(selector) or next(iter(self.variants))
             var = self.variants[variant]
             fmt = format.lower()
 
