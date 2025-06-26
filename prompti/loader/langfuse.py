@@ -5,7 +5,7 @@ import asyncio
 import yaml
 
 from ..template import PromptTemplate, Variant
-from .base import TemplateLoader, VersionEntry
+from .base import TemplateLoader, VersionEntry, TemplateNotFoundError
 
 
 class LangfuseLoader(TemplateLoader):
@@ -52,11 +52,15 @@ class LangfuseLoader(TemplateLoader):
         try:
             prm = await asyncio.to_thread(self.client.prompts().get_prompt, name, version=int(version))
         except Exception:
-            raise FileNotFoundError(f"Template {name} version {version} not found")
+            raise TemplateNotFoundError(
+                f"Template {name} version {version} not found"
+            )
 
         yaml_blob = prm.yaml
         if not yaml_blob:
-            raise FileNotFoundError(f"Template {name} version {version} has no YAML content")
+            raise TemplateNotFoundError(
+                f"Template {name} version {version} has no YAML content"
+            )
 
         meta = yaml.safe_load(yaml_blob)
         tmpl = PromptTemplate(

@@ -7,7 +7,7 @@ import httpx
 import yaml
 
 from ..template import PromptTemplate, Variant
-from .base import TemplateLoader, VersionEntry
+from .base import TemplateLoader, VersionEntry, TemplateNotFoundError
 
 
 class GitHubRepoLoader(TemplateLoader):
@@ -46,13 +46,15 @@ class GitHubRepoLoader(TemplateLoader):
     async def get_template(self, name: str, version: str) -> PromptTemplate:
         """Get specific version of template from GitHub repository."""
         if version != self.branch:
-            raise FileNotFoundError(f"Version {version} not available, only {self.branch} branch is configured")
+            raise TemplateNotFoundError(
+                f"Version {version} not available, only {self.branch} branch is configured"
+            )
 
         path = f"{self.root}/{name}.yaml"
         url = f"https://api.github.com/repos/{self.repo}/contents/{path}"
         resp = await self.client.get(url, params={"ref": self.branch}, headers=self.headers)
         if resp.status_code != 200:
-            raise FileNotFoundError(f"Template {name} not found")
+            raise TemplateNotFoundError(f"Template {name} not found")
 
         data = resp.json()
         text = codecs.decode(base64.b64decode(data["content"]), "utf-8")

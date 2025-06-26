@@ -2,7 +2,7 @@
 
 import pytest
 
-from prompti.loader.base import TemplateLoader, VersionEntry
+from prompti.loader.base import TemplateLoader, TemplateNotFoundError, VersionEntry
 from prompti.loader.memory import MemoryLoader
 
 
@@ -419,7 +419,7 @@ variants:
         }
         loader = MemoryLoader(mapping)
 
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(TemplateNotFoundError):
             await loader.get_template("test_template", "2.0.0")
 
     @pytest.mark.asyncio
