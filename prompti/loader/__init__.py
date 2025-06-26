@@ -1,5 +1,7 @@
 """Template loaders package."""
 
+from __future__ import annotations
+
 from .agenta import AgentaLoader
 from .base import TemplateLoader, TemplateNotFoundError
 from .file import FileSystemLoader

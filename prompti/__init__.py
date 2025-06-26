@@ -1,5 +1,7 @@
 """PromptI: provider-agnostic prompt engine."""
 
+from __future__ import annotations
+
 from .engine import PromptEngine
 from .experiment import (
     ExperimentRegistry,

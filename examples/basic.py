@@ -1,5 +1,7 @@
 """Minimal example demonstrating PromptI with LiteLLM."""
 
+from __future__ import annotations
+
 import asyncio
 import os
 

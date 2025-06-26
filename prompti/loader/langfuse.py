@@ -1,5 +1,7 @@
 """Load prompt templates using the Langfuse SDK."""
 
+from __future__ import annotations
+
 import asyncio
 
 import yaml

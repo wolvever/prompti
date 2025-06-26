@@ -1,5 +1,7 @@
 """LiteLLM client implementation using the `litellm` package."""
 
+from __future__ import annotations
+
 import json
 import os
 from collections.abc import AsyncGenerator
