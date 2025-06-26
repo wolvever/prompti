@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 import yaml
 
-from .model_client import ModelConfig
+from .base import ModelConfig
 
 
 class ModelConfigLoader(ABC):
