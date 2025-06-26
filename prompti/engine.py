@@ -19,7 +19,7 @@ from .loader import (
 )
 from .message import Message
 from .model_client import ModelClient, ModelConfig, RunParams, ToolParams, ToolSpec
-from .model_config_loader import ModelConfigLoader
+from .model_client.config_loader import ModelConfigLoader
 from .template import PromptTemplate
 
 _tracer = trace.get_tracer(__name__)

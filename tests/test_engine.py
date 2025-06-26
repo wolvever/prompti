@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from prompti.engine import PromptEngine, Setting
-from prompti.model_config_loader import ModelConfigLoader
+from prompti.model_client.config_loader import ModelConfigLoader
 from prompti.loader import (
     FileSystemLoader,
     MemoryLoader,
