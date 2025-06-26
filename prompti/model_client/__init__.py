@@ -1,5 +1,7 @@
 """Model clients for various providers."""
 
+from __future__ import annotations
+
 from ..message import Message
 from .base import (
     ModelClient,

@@ -1,5 +1,7 @@
 """Usage: python -m prompti.examples.chat_cli -q 'What is the weather in Tokyo?'."""
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import base64

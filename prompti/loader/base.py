@@ -1,5 +1,7 @@
 """Abstract template loader interface and version utilities."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
 import semantic_version

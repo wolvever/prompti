@@ -1,5 +1,7 @@
 """Fetch prompt templates from a remote HTTP service."""
 
+from __future__ import annotations
+
 import httpx
 import yaml
 

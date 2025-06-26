@@ -1,5 +1,7 @@
 """Load templates stored in a local Git repository."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import yaml

@@ -1,5 +1,4 @@
 """Tests for version selector functionality in TemplateLoader."""
-
 import pytest
 
 from prompti.loader.base import TemplateLoader, TemplateNotFoundError, VersionEntry
