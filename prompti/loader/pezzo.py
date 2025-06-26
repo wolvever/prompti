@@ -1,3 +1,5 @@
+"""Load prompt templates using the Pezzo cloud service."""
+
 import yaml
 
 from ..template import PromptTemplate, Variant

@@ -2,7 +2,7 @@
 
 from .agenta import AgentaLoader
 from .base import TemplateLoader
-from .filesystem import FileSystemLoader
+from .file import FileSystemLoader
 from .github_repo import GitHubRepoLoader
 from .http import HTTPLoader
 from .langfuse import LangfuseLoader

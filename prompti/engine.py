@@ -1,5 +1,7 @@
 """Core engine that resolves templates and executes them with model clients."""
 
+from __future__ import annotations
+
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Any

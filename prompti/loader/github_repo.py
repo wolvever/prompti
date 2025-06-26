@@ -1,3 +1,5 @@
+"""Load prompt templates directly from a GitHub repository."""
+
 import base64
 import codecs
 

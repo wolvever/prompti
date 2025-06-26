@@ -1,3 +1,5 @@
+"""Abstract template loader interface and version utilities."""
+
 from abc import ABC, abstractmethod
 
 import semantic_version

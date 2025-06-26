@@ -1,3 +1,5 @@
+"""Simple loader that serves templates from an in-memory mapping."""
+
 import yaml
 
 from ..template import PromptTemplate, Variant
