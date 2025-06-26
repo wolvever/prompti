@@ -37,7 +37,7 @@ class Variant(BaseModel):
     """Single experiment arm."""
 
     selector: list[str] = []
-    model_cfg: ModelConfig = Field(..., alias="model_config")
+    model_cfg: ModelConfig | None = Field(None, alias="model_config")
     messages: list[dict]
     tools: list[dict] | None = None
 

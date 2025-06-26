@@ -18,7 +18,8 @@ from .loader import (
     TemplateNotFoundError,
 )
 from .message import Message
-from .model_client import ModelClient, RunParams, ToolParams, ToolSpec
+from .model_client import ModelClient, ModelConfig, RunParams, ToolParams, ToolSpec
+from .model_config_loader import ModelConfigLoader
 from .template import PromptTemplate
 
 _tracer = trace.get_tracer(__name__)
@@ -27,10 +28,16 @@ _tracer = trace.get_tracer(__name__)
 class PromptEngine:
     """Resolve templates and generate model responses."""
 
-    def __init__(self, loaders: list[TemplateLoader], cache_ttl: int = 300) -> None:
-        """Initialize the engine with a list of loaders."""
+    def __init__(
+        self,
+        loaders: list[TemplateLoader],
+        cache_ttl: int = 300,
+        global_model_config: ModelConfig | None = None,
+    ) -> None:
+        """Initialize the engine with a list of loaders and optional global config."""
         self._loaders = loaders
         self._cache_ttl = cache_ttl
+        self._global_cfg = global_model_config
         self._resolve = alru_cache(maxsize=128, ttl=cache_ttl)(self._resolve_impl)
 
     async def _resolve_impl(self, name: str, tags: str | None) -> PromptTemplate:
@@ -90,7 +97,10 @@ class PromptEngine:
                 "variant": variant,
             },
         ):
-            client.cfg = var.model_cfg
+            cfg = var.model_cfg or self._global_cfg
+            if cfg is None:
+                raise ValueError("ModelConfig required but not provided")
+            client.cfg = cfg
             async for msg in client.run(params):
                 yield msg
 
@@ -104,7 +114,10 @@ class PromptEngine:
             loaders.append(MemoryLoader(setting.memory_templates))
         if setting.config_loader:
             loaders.append(setting.config_loader)
-        return cls(loaders, cache_ttl=setting.cache_ttl)
+        global_cfg = setting.default_model_config
+        if setting.global_config_loader:
+            global_cfg = setting.global_config_loader.load()
+        return cls(loaders, cache_ttl=setting.cache_ttl, global_model_config=global_cfg)
 
 
 class Setting(BaseModel):
@@ -119,3 +132,5 @@ class Setting(BaseModel):
     registry_url: str | None = None
     memory_templates: dict[str, dict[str, str]] | None = None
     config_loader: TemplateLoader | None = None
+    global_config_loader: ModelConfigLoader | None = None
+    default_model_config: ModelConfig | None = None
