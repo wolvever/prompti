@@ -202,59 +202,50 @@ class TemplateLoader(ABC):
     @staticmethod
     def _select_from_wildcard(candidates: list[VersionEntry], version_spec: str) -> VersionEntry | None:
         """Select version from wildcard specification like '1.x' or '1.2.x'."""
-        if not version_spec.endswith(".x"):
+        if not version_spec.endswith(".x") or not (prefix := version_spec[:-2]):
             return None
 
-        # Remove the .x suffix and create a pattern
-        prefix = version_spec[:-2]  # Remove '.x'
+        matching_candidates = [
+            (TemplateLoader._parse_version_for_sorting(candidate.id), candidate)
+            for candidate in candidates
+            if TemplateLoader._matches_wildcard_prefix(candidate.id, prefix)
+        ]
 
-        if not prefix:
+        if not matching_candidates:
             return None
 
-        # Find candidates that match the prefix
-        matching_candidates = []
+        # Sort and return the highest version
+        matching_candidates.sort(key=lambda x: x[0], reverse=True)
+        return matching_candidates[0][1]
 
-        for candidate in candidates:
-            version_id = candidate.id
+    @staticmethod
+    def _matches_wildcard_prefix(version_id: str, prefix: str) -> bool:
+        """Check if version ID matches the wildcard prefix."""
+        # Try semantic version matching first
+        try:
+            version = semantic_version.Version(version_id)
+            version_parts = str(version).split(".")
+            prefix_parts = prefix.split(".")
+            return len(prefix_parts) <= len(version_parts) and all(
+                version_parts[i] == prefix_parts[i] for i in range(len(prefix_parts))
+            )
+        except ValueError:
+            # Fall back to string prefix matching
+            return version_id.startswith(prefix + ".") or version_id == prefix
 
-            # For semantic versions, try to parse and match
-            try:
-                version = semantic_version.Version(version_id)
-                version_parts = str(version).split(".")
-                prefix_parts = prefix.split(".")
+    @staticmethod
+    def _parse_version_for_sorting(version_id: str):
+        """Parse version ID into a sortable key."""
+        # Try semantic version first
+        try:
+            return semantic_version.Version(version_id)
+        except ValueError:
+            pass
 
-                # Check if the prefix matches
-                if len(prefix_parts) <= len(version_parts):
-                    matches = all(version_parts[i] == prefix_parts[i] for i in range(len(prefix_parts)))
-                    if matches:
-                        matching_candidates.append((version, candidate))
-
-            except ValueError:
-                # For non-semantic versions, do string prefix matching
-                if version_id.startswith(prefix + ".") or version_id == prefix:
-                    # Try to parse as simple version for sorting
-                    try:
-                        parts = version_id.split(".")
-                        # Create a sortable tuple of integers
-                        sort_key = tuple(int(p) for p in parts if p.isdigit())
-                        matching_candidates.append((sort_key, candidate))
-                    except (ValueError, TypeError):
-                        # If can't parse, use string sorting
-                        matching_candidates.append((version_id, candidate))
-
-        if matching_candidates:
-            # Sort by version if available, otherwise by string
-            try:
-                # Try semantic version sorting first
-                if matching_candidates[0][0] and hasattr(matching_candidates[0][0], "major"):
-                    matching_candidates.sort(key=lambda x: x[0], reverse=True)
-                else:
-                    # Fall back to tuple/string sorting
-                    matching_candidates.sort(key=lambda x: x[0], reverse=True)
-            except (TypeError, AttributeError):
-                # If sorting fails, just use string comparison on version IDs
-                matching_candidates.sort(key=lambda x: x[1].id, reverse=True)
-
-            return matching_candidates[0][1]
-
-        return None
+        # Try parsing as numeric tuple
+        try:
+            parts = version_id.split(".")
+            return tuple(int(p) for p in parts if p.isdigit())
+        except (ValueError, TypeError):
+            # Fall back to string sorting
+            return version_id
