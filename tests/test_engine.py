@@ -3,7 +3,6 @@ from pathlib import Path
 import pytest
 
 from prompti.engine import PromptEngine, Setting
-from prompti.model_client.config_loader import ModelConfigLoader
 from prompti.loader import (
     FileSystemLoader,
     MemoryLoader,
@@ -12,6 +11,7 @@ from prompti.loader import (
 )
 from prompti.message import Message
 from prompti.model_client import ModelClient, ModelConfig, RunParams
+from prompti.model_client.config_loader import ModelConfigLoader
 from prompti.template import PromptTemplate, Variant
 
 
@@ -149,7 +149,7 @@ variants:
     )
     engine = PromptEngine.from_setting(setting)
     client = DummyClient(ModelConfig(provider="dummy", model="y"))
-    out = [m async for m in engine.run("x", {}, client=client, variant="base", stream=False)]
+    [m async for m in engine.run("x", {}, client=client, variant="base", stream=False)]
     assert client.cfg == ModelConfig(provider="dummy", model="x")
 
 
