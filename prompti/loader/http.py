@@ -4,7 +4,7 @@ import httpx
 import yaml
 
 from ..template import PromptTemplate, Variant
-from .base import TemplateLoader, VersionEntry
+from .base import TemplateLoader, VersionEntry, TemplateNotFoundError
 
 
 class HTTPLoader(TemplateLoader):
@@ -31,7 +31,9 @@ class HTTPLoader(TemplateLoader):
         """Retrieve specific version of template from the remote registry."""
         resp = await self.client.get(f"{self.base_url}/templates/{name}/{version}")
         if resp.status_code != 200:
-            raise FileNotFoundError(f"Template {name} version {version} not found")
+            raise TemplateNotFoundError(
+                f"Template {name} version {version} not found"
+            )
 
         data = resp.json()
         text = data.get("yaml", "")

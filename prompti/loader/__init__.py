@@ -1,7 +1,7 @@
 """Template loaders package."""
 
 from .agenta import AgentaLoader
-from .base import TemplateLoader
+from .base import TemplateLoader, TemplateNotFoundError
 from .file import FileSystemLoader
 from .github_repo import GitHubRepoLoader
 from .http import HTTPLoader
@@ -13,6 +13,7 @@ from .promptlayer import PromptLayerLoader
 
 __all__ = [
     "TemplateLoader",
+    "TemplateNotFoundError",
     "FileSystemLoader",
     "MemoryLoader",
     "HTTPLoader",

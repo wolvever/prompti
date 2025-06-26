@@ -5,7 +5,7 @@ from pathlib import Path
 import yaml
 
 from ..template import PromptTemplate, Variant
-from .base import TemplateLoader, VersionEntry
+from .base import TemplateLoader, VersionEntry, TemplateNotFoundError
 
 
 class FileSystemLoader(TemplateLoader):
@@ -38,7 +38,7 @@ class FileSystemLoader(TemplateLoader):
         """Load and return the template identified by name and version."""
         path = self.base / f"{name}.yaml"
         if not path.exists():
-            raise FileNotFoundError(name)
+            raise TemplateNotFoundError(name)
 
         text = path.read_text()
         data = yaml.safe_load(text)
@@ -46,7 +46,7 @@ class FileSystemLoader(TemplateLoader):
 
         # Check if the requested version matches
         if version != template_version:
-            raise FileNotFoundError(f"Version {version} not found for template {name}")
+            raise TemplateNotFoundError(f"Version {version} not found for template {name}")
 
         tmpl = PromptTemplate(
             id=name,

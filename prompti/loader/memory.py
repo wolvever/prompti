@@ -3,7 +3,7 @@
 import yaml
 
 from ..template import PromptTemplate, Variant
-from .base import TemplateLoader, VersionEntry
+from .base import TemplateLoader, VersionEntry, TemplateNotFoundError
 
 
 class MemoryLoader(TemplateLoader):
@@ -30,7 +30,7 @@ class MemoryLoader(TemplateLoader):
         """Return the template for the specific version."""
         data = self.mapping.get(name)
         if not data:
-            raise FileNotFoundError(name)
+            raise TemplateNotFoundError(name)
 
         text = data.get("yaml", "")
         ydata = yaml.safe_load(text) if text else {}
@@ -38,7 +38,7 @@ class MemoryLoader(TemplateLoader):
 
         # Check if the requested version matches
         if version != template_version:
-            raise FileNotFoundError(f"Version {version} not found for template {name}")
+            raise TemplateNotFoundError(f"Version {version} not found for template {name}")
 
         tmpl = PromptTemplate(
             id=name,

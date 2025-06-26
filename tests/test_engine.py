@@ -3,7 +3,12 @@ from pathlib import Path
 import pytest
 
 from prompti.engine import PromptEngine
-from prompti.loader import FileSystemLoader, MemoryLoader, TemplateLoader
+from prompti.loader import (
+    FileSystemLoader,
+    MemoryLoader,
+    TemplateLoader,
+    TemplateNotFoundError,
+)
 from prompti.message import Message
 from prompti.model_client import ModelClient, ModelConfig, RunParams
 from prompti.template import PromptTemplate, Variant
@@ -87,5 +92,5 @@ async def test_load_caches_result():
 @pytest.mark.asyncio
 async def test_load_missing_raises():
     engine = PromptEngine([FileSystemLoader(Path("./prompts"))])
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(TemplateNotFoundError):
         await engine.load("nonexistent")

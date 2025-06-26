@@ -19,6 +19,7 @@ from .loader import (
     PezzoLoader,
     PromptLayerLoader,
     TemplateLoader,
+    TemplateNotFoundError,
 )
 from .message import Kind, Message
 from .model_client import (
@@ -55,6 +56,7 @@ __all__ = [
     "bucket",
     "Kind",
     "TemplateLoader",
+    "TemplateNotFoundError",
     "HTTPLoader",
     "FileSystemLoader",
     "MemoryLoader",

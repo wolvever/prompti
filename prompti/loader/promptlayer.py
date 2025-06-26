@@ -6,7 +6,7 @@ import httpx
 import yaml
 
 from ..template import ModelConfig, PromptTemplate, Variant
-from .base import TemplateLoader, VersionEntry
+from .base import TemplateLoader, VersionEntry, TemplateNotFoundError
 
 
 class PromptLayerLoader(TemplateLoader):
@@ -61,7 +61,9 @@ class PromptLayerLoader(TemplateLoader):
             json=body,
         )
         if resp.status_code != 200:
-            raise FileNotFoundError(f"Template {name} version {version} not found")
+            raise TemplateNotFoundError(
+                f"Template {name} version {version} not found"
+            )
 
         data = resp.json()
         content = data["prompt_template"]["content"]

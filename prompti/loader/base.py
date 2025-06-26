@@ -8,6 +8,12 @@ from pydantic import BaseModel, Field
 from ..template import PromptTemplate
 
 
+class TemplateNotFoundError(Exception):
+    """Raised when a template cannot be located by a loader."""
+
+
+
+
 class VersionEntry(BaseModel):
     """Represents a version of a template with its ID and tags."""
 

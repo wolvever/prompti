@@ -10,7 +10,13 @@ from async_lru import alru_cache
 from opentelemetry import trace
 from pydantic import BaseModel
 
-from .loader import FileSystemLoader, HTTPLoader, MemoryLoader, TemplateLoader
+from .loader import (
+    FileSystemLoader,
+    HTTPLoader,
+    MemoryLoader,
+    TemplateLoader,
+    TemplateNotFoundError,
+)
 from .message import Message
 from .model_client import ModelClient, RunParams, ToolParams, ToolSpec
 from .template import PromptTemplate
@@ -36,7 +42,7 @@ class PromptEngine:
                 version = versions[0].id
                 tmpl = await loader.get_template(name, version)
                 return tmpl
-        raise FileNotFoundError(name)
+        raise TemplateNotFoundError(name)
 
     async def load(self, template_name: str) -> PromptTemplate:
         """Public entry: resolve & cache a template by name."""
