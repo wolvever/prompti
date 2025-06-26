@@ -41,9 +41,11 @@ where = ["."]
 [tool.ruff]
 line-length = 120
 extend-exclude = ["tests/data"]
+ignore = ["PYI001"]  # Ignore untyped import rule
 
 [tool.ruff.lint]
 select = [
+    "D",   # pycodestyle docstring
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
     "F",   # Pyflakes
