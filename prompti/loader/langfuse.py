@@ -1,11 +1,9 @@
-from __future__ import annotations
-
 import asyncio
 
 import yaml
 
 from ..template import PromptTemplate, Variant
-from .base import TemplateLoader
+from .base import TemplateLoader, VersionEntry
 
 
 class LangfuseLoader(TemplateLoader):
@@ -21,9 +19,42 @@ class LangfuseLoader(TemplateLoader):
 
         self.client = get_client(public_key=public_key, secret_key=secret_key, base_url=base_url)
 
-    async def load(self, name: str, tags: str | None) -> tuple[str, PromptTemplate]:
-        prm = await asyncio.to_thread(self.client.prompts().get_prompt, name, label=tags)
+    async def list_versions(self, name: str) -> list[VersionEntry]:
+        """List all available versions for a template from Langfuse."""
+        try:
+            # Get all versions of the prompt
+            prompts = await asyncio.to_thread(self.client.prompts().get_prompt_versions, name)
+            versions = []
+
+            for prompt in prompts:
+                yaml_blob = prompt.yaml
+                meta = yaml.safe_load(yaml_blob) if yaml_blob else {}
+                tags = meta.get("tags", [])
+                versions.append(VersionEntry(id=str(prompt.version), tags=list(tags)))
+
+            return versions
+        except Exception:
+            # Fallback: try to get current version to see if template exists
+            try:
+                prm = await asyncio.to_thread(self.client.prompts().get_prompt, name)
+                yaml_blob = prm.yaml
+                meta = yaml.safe_load(yaml_blob) if yaml_blob else {}
+                tags = meta.get("tags", [])
+                return [VersionEntry(id=str(prm.version), tags=list(tags))]
+            except Exception:
+                return []
+
+    async def get_template(self, name: str, version: str) -> PromptTemplate:
+        """Get specific version of template from Langfuse."""
+        try:
+            prm = await asyncio.to_thread(self.client.prompts().get_prompt, name, version=int(version))
+        except Exception:
+            raise FileNotFoundError(f"Template {name} version {version} not found")
+
         yaml_blob = prm.yaml
+        if not yaml_blob:
+            raise FileNotFoundError(f"Template {name} version {version} has no YAML content")
+
         meta = yaml.safe_load(yaml_blob)
         tmpl = PromptTemplate(
             id=name,
@@ -34,4 +65,4 @@ class LangfuseLoader(TemplateLoader):
             variants={k: Variant(**v) for k, v in meta.get("variants", {}).items()},
             yaml=yaml_blob,
         )
-        return tmpl.version, tmpl
+        return tmpl

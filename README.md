@@ -81,6 +81,35 @@ contract:
 version, tmpl = await loader.load("my_prompt", tags="prod")
 ```
 
+### 🎯 Version Selection
+
+Template loaders support flexible version selection syntax for precise version matching:
+
+| Format | Description | Example |
+|--------|-------------|---------|
+| `name@1.x` | Major version wildcard | Selects latest 1.x.x version |
+| `name@1.x#prod` | Major version + tag | Latest 1.x.x with 'prod' tag |
+| `name@1.x#prod+exp_a` | Major version + multiple tags | Version with both 'prod' and 'exp_a' tags |
+| `name@1.2.x` | Minor version wildcard | Latest 1.2.x version |
+| `name@1.2.x#beta` | Minor version + tag | 1.2.x version with 'beta' tag |
+| `name@>=1.2.0 <1.5.0` | Version range | Latest version in specified range |
+
+**Usage Examples:**
+
+```python
+# Load production version of latest 1.x
+template = await loader.load("user-greeting", "1.x#prod")
+
+# Load experimental version with multiple tags
+template = await loader.load("user-greeting", "1.2.x#prod+exp_a")
+
+# Load specific version range
+template = await loader.load("user-greeting", ">=1.2.0 <1.5.0")
+
+# Load exact version
+template = await loader.load("user-greeting", "1.3.2")
+```
+
 To wire them up:
 
 ```python

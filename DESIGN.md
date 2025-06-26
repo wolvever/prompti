@@ -185,6 +185,37 @@ CI 只做静态解析：
 
 支持 Source：LocalFile、RemoteHTTP、InMemory。
 
+##### 4.3.1 版本选择器语法
+
+TemplateLoader 支持灵活的版本选择器语法，用于精确匹配所需的模板版本：
+
+| 格式                           | 说明                  | 示例                                    |
+| ----------------------------- | -------------------- | -------------------------------------- |
+| `name@1.x`                    | 主版本通配            | `my-tpl@1.x` → 选择最新的 1.x.x 版本     |
+| `name@1.x#prod`               | 主版本 + 单一标签      | `my-tpl@1.x#prod` → 1.x.x 中带 prod 标签的最新版本 |
+| `name@1.x#prod+exp_a`         | 主版本 + 多标签        | `my-tpl@1.x#prod+exp_a` → 同时具有 prod 和 exp_a 标签 |
+| `name@1.2.x`                  | 次版本通配            | `my-tpl@1.2.x` → 选择最新的 1.2.x 版本  |
+| `name@1.2.x#beta`             | 次版本 + 标签         | `my-tpl@1.2.x#beta` → 1.2.x 中带 beta 标签的版本 |
+| `name@>=1.2.0 <1.5.0`         | 版本范围              | `my-tpl@>=1.2.0 <1.5.0` → 1.2.0 到 1.5.0 范围内的最新版本 |
+
+**版本匹配优先级**：
+1. 标签过滤：首先筛选出包含所有必需标签的版本
+2. 版本匹配：根据版本规则（精确、通配符、范围）筛选候选版本
+3. 最新选择：从候选版本中选择语义版本号最高的版本
+
+**使用示例**：
+
+```python
+# 加载生产环境的最新 1.x 版本
+template = await loader.load("user-greeting", "1.x#prod")
+
+# 加载实验版本
+template = await loader.load("user-greeting", "1.2.x#prod+exp_a")
+
+# 加载指定范围内的版本
+template = await loader.load("user-greeting", ">=1.2.0 <1.5.0")
+```
+
 ---
 
 #### 4.4 CI/CD 校验链

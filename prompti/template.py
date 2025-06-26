@@ -1,17 +1,14 @@
 """Prompt template with variant selection and Jinja rendering."""
 
-from __future__ import annotations
-
 import json
 import re
 from time import perf_counter
-from typing import Any, Dict
 
 import yaml
 from jinja2 import StrictUndefined
 from jinja2.sandbox import SandboxedEnvironment
 from prometheus_client import Histogram
-from pydantic import BaseModel, model_validator, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .message import Kind, Message
 from .model_client import ModelConfig
@@ -28,11 +25,9 @@ _format_latency = Histogram(
 SNAKE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
-def _ctx_to_flat(ctx: Dict[str, Any]) -> str:
+def _ctx_to_flat(ctx: dict[str, Any]) -> str:
     """Flatten context to a lowercase JSON string for token matching."""
     return json.dumps(ctx, separators=(",", ":")).lower()
-
-
 
 
 class Variant(BaseModel):
@@ -55,7 +50,7 @@ class PromptTemplate(BaseModel):
     yaml: str = ""
     id: str | None = None
 
-    def choose_variant(self, selector: Dict[str, Any]) -> str | None:
+    def choose_variant(self, selector: dict[str, Any]) -> str | None:
         """Return the first variant id whose tokens all appear in ``selector``."""
         haystack = _ctx_to_flat(selector)
         for vid, var in self.variants.items():
@@ -64,7 +59,7 @@ class PromptTemplate(BaseModel):
         return None
 
     @model_validator(mode="after")
-    def _snake_names(self) -> "PromptTemplate":
+    def _snake_names(self) -> PromptTemplate:
         if not SNAKE.fullmatch(self.name):
             raise ValueError("name must be lower_snake_case")
         bad = [v for v in self.variants if not SNAKE.fullmatch(v)]
@@ -83,7 +78,7 @@ class PromptTemplate(BaseModel):
             self.tags = data.get("tags", self.tags) or []
             self.variants = {k: Variant(**v) for k, v in data.get("variants", {}).items()}
 
-    def _render_messages(self, messages: list[dict], variables: Dict[str, Any]) -> list[Message]:
+    def _render_messages(self, messages: list[dict], variables: dict[str, Any]) -> list[Message]:
         result: list[Message] = []
         for msg in messages:
             role = msg.get("role")
@@ -100,10 +95,10 @@ class PromptTemplate(BaseModel):
 
     def format(
         self,
-        variables: Dict[str, Any],
+        variables: dict[str, Any],
         *,
         variant: str | None = None,
-        ctx: Dict[str, Any] | None = None,
+        ctx: dict[str, Any] | None = None,
         format: str = "openai",
     ) -> tuple[list[Message] | list[dict], Variant]:
         """Render the template and return messages in the requested format.
@@ -132,9 +127,7 @@ class PromptTemplate(BaseModel):
 
                 for msg in var.messages:
                     parts = [_part_to_str(p) for p in msg.get("parts", [])]
-                    oa_messages.append(
-                        {"role": msg.get("role"), "content": "\n".join(parts).strip("\n")}
-                    )
+                    oa_messages.append({"role": msg.get("role"), "content": "\n".join(parts).strip("\n")})
                 return oa_messages, var
             if fmt == "claude":
                 claude_msgs: list[dict] = []
@@ -158,5 +151,3 @@ class PromptTemplate(BaseModel):
             raise ValueError(f"Unknown format: {format}")
         finally:
             _format_latency.labels(self.name, self.version).observe(perf_counter() - start)
-
-

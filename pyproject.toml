@@ -22,6 +22,7 @@ dependencies = [
   "xxhash",
   "litellm>=1.36",
   "python-dotenv>=1.1.0",
+  "semantic-version>=2.10.0",
 ]
 
 [project.optional-dependencies]
