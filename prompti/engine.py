@@ -62,10 +62,11 @@ class PromptEngine:
         *,
         variant: str | None = None,
         ctx: dict[str, Any] | None = None,
-    ) -> list[Message]:
-        """Return formatted messages for ``template_name``."""
+        format: str = "a2a",
+    ) -> list[Message] | list[dict]:
+        """Return formatted messages for ``template_name`` in ``format``."""
         tmpl = await self._resolve(template_name, None)
-        msgs, _ = tmpl.format(variables, variant=variant, ctx=ctx, format="a2a")
+        msgs, _ = tmpl.format(variables, variant=variant, ctx=ctx, format=format)
         return msgs
 
     async def run(

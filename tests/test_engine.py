@@ -169,3 +169,23 @@ variants:
     client = DummyClient(ModelConfig(provider="dummy", model="y"))
     with pytest.raises(ValueError):
         [m async for m in engine.run("x", {}, client=client, variant="base", stream=False)]
+
+
+@pytest.mark.asyncio
+async def test_engine_format_openai():
+    yaml_text = """
+name: greet
+version: '1'
+variants:
+  base:
+    selector: []
+    messages:
+      - role: user
+        parts:
+          - type: text
+            text: "Hello {{ name }}"
+"""
+
+    engine = PromptEngine([MemoryLoader({"greet": {"yaml": yaml_text}})])
+    msgs = await engine.format("greet", {"name": "Ada"}, variant="base", format="openai")
+    assert msgs == [{"role": "user", "content": "Hello Ada"}]
