@@ -1,6 +1,4 @@
-"""
-python -m prompti.examples.chat_cli -q "What is the weather in Tokyo?"
-"""
+"""Usage: python -m prompti.examples.chat_cli -q 'What is the weather in Tokyo?'."""
 
 import argparse
 import asyncio
@@ -53,7 +51,8 @@ def setup_observability(port: int = 8000) -> None:
     trace.set_tracer_provider(provider)
 
 
-async def main() -> None:
+async def main() -> None:  # noqa: C901 - command-line interface complexity
+    """Run the command-line interface."""
     parser = argparse.ArgumentParser(description="Simple LLM CLI")
     parser.add_argument("-q", "--query", required=True, help="Query text to send")
     parser.add_argument(
@@ -100,7 +99,7 @@ async def main() -> None:
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
-    
+
     setup_observability()
 
     cfg = ModelConfig(

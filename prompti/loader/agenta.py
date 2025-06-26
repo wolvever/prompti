@@ -5,7 +5,7 @@ import asyncio
 import yaml
 
 from ..template import PromptTemplate, Variant
-from .base import TemplateLoader, VersionEntry, TemplateNotFoundError
+from .base import TemplateLoader, TemplateNotFoundError, VersionEntry
 
 
 class AgentaLoader(TemplateLoader):
@@ -54,10 +54,10 @@ class AgentaLoader(TemplateLoader):
                 environment_slug="production",
                 variant_version=version,
             )
-        except Exception:
+        except Exception as err:
             raise TemplateNotFoundError(
                 f"Template {name} version {version} not found"
-            )
+            ) from err
 
         yaml_blob = yaml.safe_dump(cfg["prompt"])
         if not yaml_blob:

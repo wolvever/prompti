@@ -48,8 +48,17 @@ class LiteLLMClient(ModelClient):
                 elif m.kind in ("image", "image_url"):
                     blocks.append({"type": "image", "source": {"type": "url", "url": m.content}})
                 elif m.kind == "tool_use":
-                    data = m.content if isinstance(m.content, dict) else json.loads(m.content)
-                    blocks.append({"type": "tool_use", "id": data.get("call_id"), "name": data.get("name"), "input": data.get("arguments", {})})
+                    data = (
+                        m.content if isinstance(m.content, dict) else json.loads(m.content)
+                    )
+                    blocks.append(
+                        {
+                            "type": "tool_use",
+                            "id": data.get("call_id"),
+                            "name": data.get("name"),
+                            "input": data.get("arguments", {}),
+                        }
+                    )
                 elif m.kind == "tool_result":
                     blocks.append({"type": "tool_result", "content": m.content})
 
@@ -184,7 +193,11 @@ class LiteLLMClient(ModelClient):
                         blocks = response.get("content", [])
                         for blk in blocks:
                             if blk.get("type") == "thinking":
-                                yield Message(role="assistant", kind="thinking", content=blk.get("thinking") or blk.get("text", ""))
+                                yield Message(
+                                    role="assistant",
+                                    kind="thinking",
+                                    content=blk.get("thinking") or blk.get("text", ""),
+                                )
                             elif blk.get("type") == "tool_use":
                                 yield Message(
                                     role="assistant",

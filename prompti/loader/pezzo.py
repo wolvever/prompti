@@ -3,7 +3,7 @@
 import yaml
 
 from ..template import PromptTemplate, Variant
-from .base import TemplateLoader, VersionEntry, TemplateNotFoundError
+from .base import TemplateLoader, TemplateNotFoundError, VersionEntry
 
 
 class PezzoLoader(TemplateLoader):
@@ -36,10 +36,10 @@ class PezzoLoader(TemplateLoader):
         """Get specific version of template from Pezzo."""
         try:
             prompt = await self.client.get_prompt(slug=name, environment="production", version=version)
-        except Exception:
+        except Exception as err:
             raise TemplateNotFoundError(
                 f"Template {name} version {version} not found"
-            )
+            ) from err
 
         yaml_blob = prompt["yaml"]
         if not yaml_blob:
