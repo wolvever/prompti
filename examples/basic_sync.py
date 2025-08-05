@@ -1,12 +1,10 @@
-"""Minimal example demonstrating PromptI with LiteLLM."""
+"""Minimal example demonstrating PromptI with synchronous completion."""
 
 from __future__ import annotations
-
-import asyncio
+import uuid
 import logging
 from prompti.engine import PromptEngine, Setting
 from prompti.model_client.base import ModelConfig, RunParams, ToolParams, ToolSpec
-from prompti.message import Message
 
 logging.basicConfig(level=logging.INFO)
 
@@ -16,43 +14,55 @@ setting = Setting(
 )
 engine = PromptEngine.from_setting(setting)
 
-async def stream_call() -> None:
-    """Render ``support_reply`` and print the response."""
+
+
+def stream_call() -> None:
+    """Render ``simple-demo`` and print the response using sync completion."""
 
     try:
-        async for msg in engine.acompletion(
+        for msg in engine.completion(
+            "chatbot",
+            variables={"instruction": "你是图像分析大师",
+                       "query": "这张图片是什么？", "chat_history": ""},
+            stream=True,
+            variant="default",
+            request_id=str(uuid.uuid4()),
+            session_id=str(uuid.uuid4()),
+            user_id=str(uuid.uuid4()),
+            span_id=str(uuid.uuid4()),
+            parant_span_id=str(uuid.uuid4()),
+            model_cfg={
+                "provider": "openai",
+                "model": "claude-sonnet-4-20250514"
+            }
+
+        ):
+            print(msg)
+    finally:
+        # Note: In sync version, we don't need await
+        # engine.close() is not async in sync context
+        pass
+
+
+def no_stream_call() -> None:
+    """Render template and print the response without streaming."""
+    try:
+        for msg in engine.completion(
             "simple-demo",
             variables={"user_name": "小明",
                        "tasks": [{"name": "task_a", "priority": 2}, {"name": "task_b", "priority": 2}], "urgent": 1},
-            stream=True,
-            variant="use-jinja2",
-
-        ):
-            print(msg)
-    finally:
-        await engine.aclose()
-
-
-# 传递模版默认的ModelConfig
-
-async def no_stream_call() -> None:
-    """Render ``support_reply`` and print the response."""
-
-    try:
-        async for msg in engine.acompletion(
-            "simple_demo",
-            {"user_query": "hello", "system_prompt": "reply with hello at beginning"},
             stream=False,
+            variant="use-jinja2",
         ):
             print(msg)
     finally:
-        await engine.aclose()
+        pass
 
 
-async def multi_modal_call() -> None:
-    """Render ``support_reply`` and print the response."""
+def multi_modal_call() -> None:
+    """Render multimodal template and print the response."""
     try:
-        async for msg in engine.acompletion(
+        for msg in engine.completion(
             "simple-demo",
             variables={
                 "instruction": "你是图像分析大师",
@@ -69,12 +79,13 @@ async def multi_modal_call() -> None:
         ):
             print(msg)
     finally:
-        await engine.aclose()
+        pass
 
 
-async def tool_call():
+def tool_call():
+    """Demonstrate tool calling with sync completion."""
     try:
-        async for msg in engine.acompletion(
+        for msg in engine.completion(
             "simple-demo",
             variables={
                 "instruction": "你好",
@@ -116,13 +127,17 @@ async def tool_call():
         ):
             print(msg)
     finally:
-        await engine.aclose()
+        pass
 
 
 def multi_chat() -> None:
-    """Render ``support_reply`` and print the response."""
+    """Demonstrate multi-turn chat with sync completion."""
     try:
-        messages = Message.get_openai_messages([
+        for msg in engine.completion(
+            "test_gxy_test",
+            variables={},
+            stream=True,
+            messages=[
                 {
                     "role": "system",
                     "content": "你是一个聊天助手",
@@ -139,31 +154,21 @@ def multi_chat() -> None:
                     "role": "user",
                     "content": "你叫什么名字呀",
                 },
-            ])
-        for msg in engine.completion(
-            "simple-demo",
-            variables={"instruction": "你是一个聊天助手", "query": "你好啊"},
-            stream=True,
-            messages=messages
+            ]
         ):
             print(msg)
     finally:
-        await engine.aclose()
+        pass
 
 
 def tool_call2() -> None:
-    """Render ``support_reply`` and print the response."""
-    setting = Setting(
-        registry_url="http://10.224.55.241/api/v1",
-        registry_api_key="7e5d106c-e701-4587-a95a-b7c7c02ee619",
-    )
-    engine = PromptEngine.from_setting(setting)
-
+    """Demonstrate tool calling with message history."""
     try:
-        async for msg in engine.acompletion(
-            "simple-demo",
+        for msg in engine.completion(
+            "coding_agent",
+            version="1.0.4",
             variables={"instruction": "你是一个聊天助手", "query": "你好啊"},
-            stream=True,
+            stream=False,
             messages=[
                 {
                     "role": "user",
@@ -187,16 +192,28 @@ def tool_call2() -> None:
                     "tool_call_id": "tool_call_1",
                     "content": "{\"temperature\": \"30°C\", \"condition\": \"晴\"}"
                 }
-            ]
+            ],
+            model_cfg=ModelConfig(
+                # provider="litellm",
+                # model="anthropic/claude-sonnet-4-20250514",
+                # api_key="sk-n2cV4S5ti02gnrNX5xhwQi8xUlFXgjfmsYKaZCYW8RIKts6x",
+                # api_url="https://aiproxy.usw.sealos.io",
+                provider="openai",
+                model="claude-3-7-sonnet-20250219",
+                temperature=0.7,
+                top_p=0.5,
+                max_tokens=1024,
+            )
         ):
             print(msg)
     finally:
-        await engine.aclose()
+        pass
 
 
 if __name__ == "__main__":
-    asyncio.run(stream_call())
-    asyncio.run(tool_call())
-    asyncio.run(tool_call2())
-    asyncio.run(multi_modal_call())
-    asyncio.run(multi_chat())
+    stream_call()
+    no_stream_call()
+    multi_modal_call()
+    tool_call()
+    multi_chat()
+    tool_call2()

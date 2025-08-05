@@ -20,7 +20,7 @@ class ExperimentSplit(BaseModel):
 class ExperimentRegistry(Protocol):
     """Lookup experiment variant for a prompt/user."""
 
-    async def get_split(self, prompt: str, user_id: str) -> ExperimentSplit:
+    async def aget_split(self, prompt: str, user_id: str) -> ExperimentSplit:
         """Return the experiment split for ``prompt`` and ``user_id``."""
         ...
 
@@ -54,7 +54,7 @@ class UnleashRegistry:
         self.base_url = base_url.rstrip("/")
         self._client = client or httpx.AsyncClient()
 
-    async def get_split(self, prompt: str, user_id: str) -> ExperimentSplit:
+    async def aget_split(self, prompt: str, user_id: str) -> ExperimentSplit:
         """Resolve the split for ``prompt`` from the Unleash server."""
         url = f"{self.base_url}/client/features/{prompt}"
         resp = await self._client.get(
@@ -85,7 +85,7 @@ class GrowthBookRegistry:
         """Initialize with ``features`` describing experiments and weights."""
         self._features = features
 
-    async def get_split(self, prompt: str, user_id: str) -> ExperimentSplit:
+    async def aget_split(self, prompt: str, user_id: str) -> ExperimentSplit:
         """Return the configuration for ``prompt`` without selecting a variant."""
         conf = self._features.get(prompt)
         if not conf:
