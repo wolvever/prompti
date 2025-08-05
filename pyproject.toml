@@ -1,9 +1,9 @@
 [project]
 name = "prompti"
-version = "0.1.0"
+version = "0.8.15"
 description = "Provider-agnostic asynchronous prompt engine"
 authors = [
-  { name = "wolvever" }
+  { name = "wolvever" }, { name = "gaoxiaoyang02" }
 ]
 readme = "README.md"
 license = {text = "MIT"}

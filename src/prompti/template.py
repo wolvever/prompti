@@ -4,16 +4,15 @@ from __future__ import annotations
 
 import json
 import re
+import ast
 from time import perf_counter
 from typing import Any
 
-import yaml
 from jinja2 import StrictUndefined
 from jinja2.sandbox import SandboxedEnvironment
 from prometheus_client import Histogram
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
-from .message import Kind, Message
 from .model_client import ModelConfig
 
 _env = SandboxedEnvironment(undefined=StrictUndefined)
@@ -33,13 +32,28 @@ def _selector_to_flat(selector: dict[str, Any]) -> str:
     return json.dumps(selector, separators=(",", ":")).lower()
 
 
+def _parse_list_or_return_string(s: str):
+    """
+    Try to parse a string as a Python list.
+    """
+    try:
+        val = ast.literal_eval(s)
+        if isinstance(val, list):
+            return val
+        else:
+            # 解析成功但不是列表，返回原字符串
+            return s
+    except Exception:
+        # 解析失败，返回原字符串
+        return s
+
 class Variant(BaseModel):
     """Single experiment arm."""
 
     selector: list[str] = []
-    model_cfg: ModelConfig | None = Field(None, alias="model_config")
+    model_cfg: ModelConfig | None = Field(None)
     messages: list[dict]
-    tools: list[dict] | None = None
+    required_variables: list[str] = []
 
 
 class PromptTemplate(BaseModel):
@@ -47,11 +61,135 @@ class PromptTemplate(BaseModel):
 
     name: str
     description: str = ""
-    version: str
-    tags: list[str] = []
+    version: str | None = None
+    aliases: list[str] = []
     variants: dict[str, Variant]
-    yaml: str = ""
     id: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "PromptTemplate":
+        """Create a PromptTemplate instance from a dictionary.
+        
+        This method handles the conversion of the template data dictionary
+        (typically from the database) into a proper PromptTemplate instance.
+        
+        Args:
+            data: Dictionary containing template data with the following structure:
+                - name: Template name
+                - description: Template description (optional)
+                - version: Template version (optional)
+                - template_id: Template ID (optional, mapped to 'id')
+                - alias: List of aliases (optional, mapped to 'aliases')
+                - variants: List of variant dictionaries containing:
+                    - id: Variant name/key
+                    - messages_template: List of message dictionaries
+                    - required_variables: List of required variable names
+                    - model_cfg: Model configuration dictionary
+                    - tags: Additional tags/metadata
+        
+        Returns:
+            PromptTemplate: A properly constructed PromptTemplate instance
+            
+        Example:
+            >>> template_dict = {
+            ...     "name": "customer-service",
+            ...     "description": "Customer service template",
+            ...     "version": "1.2.3",
+            ...     "alias": ["latest", "stable"],
+            ...     "variants": [
+            ...         {
+            ...             "id": "default",
+            ...             "messages_template": [
+            ...                 {"role": "system", "content": "You are a helpful assistant."},
+            ...                 {"role": "user", "content": "{{user_query}}"}
+            ...             ],
+            ...             "required_variables": ["user_query"],
+            ...             "model_cfg": {"model": "gpt-4o", "temperature": 0.1}
+            ...         }
+            ...     ]
+            ... }
+            >>> template = PromptTemplate.from_dict(template_dict)
+        """
+        # Extract basic fields
+        name = data.get("name", "")
+        description = data.get("description", "")
+        version = data.get("version")
+        template_id = data.get("template_id") or data.get("id")
+        aliases = data.get("alias", []) or data.get("aliases", [])
+        
+        # Ensure aliases is a list
+        if not isinstance(aliases, list):
+            aliases = []
+            
+        # Process variants from list format to dict format
+        variants_data = data.get("variants", [])
+        variants = {}
+        
+        if isinstance(variants_data, list):
+            for variant_data in variants_data:
+                # Extract variant information
+                variant_id = variant_data.get("id", "default")
+                messages = variant_data.get("messages_template", [])
+                required_variables = variant_data.get("required_variables", [])
+                model_cfg_data = variant_data.get("model_cfg")
+                tags = variant_data.get("tags", {})
+                
+                # Create ModelConfig if present
+                model_cfg = None
+                if model_cfg_data and isinstance(model_cfg_data, dict):
+                    model_cfg = ModelConfig(**model_cfg_data)
+                
+                # Create Variant instance
+                variant = Variant(
+                    selector=tags.get("selector", []) if isinstance(tags, dict) else [],
+                    model_cfg=model_cfg,
+                    messages=messages,
+                    required_variables=required_variables
+                )
+                
+                variants[variant_id] = variant
+        elif isinstance(variants_data, dict):
+            # Handle case where variants is already a dict
+            for variant_id, variant_data in variants_data.items():
+                if isinstance(variant_data, dict):
+                    messages = variant_data.get("messages", variant_data.get("messages_template", []))
+                    required_variables = variant_data.get("required_variables", [])
+                    model_cfg_data = variant_data.get("model_cfg")
+                    selector = variant_data.get("selector", [])
+                    
+                    # Create ModelConfig if present
+                    model_cfg = None
+                    if model_cfg_data and isinstance(model_cfg_data, dict):
+                        model_cfg = ModelConfig(**model_cfg_data)
+                    
+                    # Create Variant instance
+                    variant = Variant(
+                        selector=selector,
+                        model_cfg=model_cfg,
+                        messages=messages,
+                        required_variables=required_variables
+                    )
+                    
+                    variants[variant_id] = variant
+        
+        # If no variants found, create a default one
+        if not variants:
+            variants["default"] = Variant(
+                selector=[],
+                model_cfg=None,
+                messages=[],
+                required_variables=[]
+            )
+        
+        # Create and return PromptTemplate instance
+        return cls(
+            name=name,
+            description=description,
+            version=version,
+            aliases=aliases,
+            variants=variants,
+            id=template_id
+        )
 
     def choose_variant(self, selector: dict[str, Any]) -> str | None:
         """Return the first variant id whose tokens all appear in ``selector``."""
@@ -61,115 +199,90 @@ class PromptTemplate(BaseModel):
                 return vid
         return None
 
-    @model_validator(mode="after")
-    def _snake_names(self) -> PromptTemplate:
-        if not SNAKE.fullmatch(self.name):
-            raise ValueError("name must be lower_snake_case")
-        bad = [v for v in self.variants if not SNAKE.fullmatch(v)]
-        if bad:
-            raise ValueError(f"variant IDs not snake_case: {bad}")
-        if self.id is None:
-            self.id = self.name
-        return self
-
-    def model_post_init(self, _context: Any) -> None:  # type: ignore[override]
-        """Store raw YAML and populate variants if created from text."""
-        if self.yaml and not self.variants:
-            data = yaml.safe_load(self.yaml)
-            self.description = data.get("description", self.description)
-            self.version = str(data.get("version", self.version))
-            self.tags = data.get("tags", self.tags) or []
-            self.variants = {k: Variant(**v) for k, v in data.get("variants", {}).items()}
-
-    def _render_messages(self, messages: list[dict], variables: dict[str, Any]) -> list[Message]:
-        result: list[Message] = []
-        for msg in messages:
-            role = msg.get("role")
-            for part in msg.get("parts", []):
-                ptype = part.get("type")
-                if ptype == "text":
-                    text = part.get("text", "").replace("\\n", "\n")
-                    rendered = _env.from_string(text).render(**variables)
-                    rendered = rendered.strip("\n")
-                    result.append(Message(role=role, kind=Kind.TEXT, content=rendered))
-                elif ptype == "file":
-                    result.append(Message(role=role, kind="file", content=part.get("file")))
-        return result
-
     def format(
         self,
         variables: dict[str, Any],
         *,
         variant: str | None = None,
         selector: dict[str, Any] | None = None,
-        format: str = "openai",
-    ) -> tuple[list[Message] | list[dict], Variant]:
-        """Render the template and return messages in the requested format.
-
-        Supported formats are ``openai`` (default), ``claude``, ``litellm`` and
-        ``a2a``. ``litellm`` is an alias for ``openai`` and ``a2a`` returns the
-        raw :class:`Message` objects used internally.
-        """
+    ) -> tuple[list[dict], Variant]:
+        """Render the template and return messages in OpenAI format."""
         start = perf_counter()
         try:
             selector = selector or variables
             variant = variant or self.choose_variant(selector) or next(iter(self.variants))
-            var = self.variants[variant]
-            fmt = format.lower()
-
-            formatter_map = {
-                "openai": self._format_openai,
-                "litellm": self._format_openai,
-                "claude": self._format_claude,
-                "a2a": self._format_a2a,
+            """
+            variants = {
+                "prod_zh": Variant(selector=["prod", "zh-cn"]),
+                "dev_en": Variant(selector=["dev", "en"]),
             }
+            choose_variant({"env": "prod", "locale": "zh-CN"}) -> prod_zh
+            
+            """
+            var = self.variants[variant]
 
-            if fmt not in formatter_map:
-                raise ValueError(f"Unknown format: {format}")
+            # Render messages with Jinja
+            rendered_messages = []
+            for msg in var.messages:
+                role = msg.get("role")
+                content = msg.get("content", [])
 
-            return formatter_map[fmt](var, variables), var
+                # Handle content rendering
+                if isinstance(content, list):
+                    rendered_content = []
+                    for item in content:
+                        if isinstance(item, dict):
+                            item_type = item.get("type")
+                            if item_type == "text":
+                                text = item.get("text", "")
+                                rendered = _env.from_string(text).render(**variables)
+                                # 只有当渲染后的文本不为空时才添加
+                                if rendered.strip():
+                                    rendered_content.append({"type": "text", "text": rendered})
+                            elif item_type == "image_url":
+                                # Render image_url if it contains template variables
+                                other_key = [k for k in item.keys() if k != "type"][0]
+                                image_url = item.get(other_key, "")
+                                rendered_url = _env.from_string(image_url).render(**variables)
+                                parsed_rendered_url = _parse_list_or_return_string(rendered_url)
+                                if isinstance(parsed_rendered_url, str):
+                                    rendered_content.append({"type": "image_url", "image_url": {"url": parsed_rendered_url}})
+                                else:
+                                    for url in parsed_rendered_url:
+                                        rendered_content.append({"type": "image_url", "image_url": {"url": url}})
+                            else:
+                                # Pass through other content types
+                                rendered_content.append(item)
+                        else:
+                            # Handle string content
+                            text = str(item)
+                            rendered = _env.from_string(text).render(**variables)
+                            # 只有当渲染后的文本不为空时才添加
+                            if rendered.strip():
+                                rendered_content.append({"type": "text", "text": rendered})
+                else:
+                    # Handle single string content
+                    text = str(content)
+                    rendered = _env.from_string(text).render(**variables)
+                    rendered_content = rendered
+
+                # 只有当消息内容不为空时才添加到最终结果中
+                # 对于列表类型的content，检查是否有有效内容
+                # 对于字符串类型的content，检查是否为空
+                should_add_message = False
+                if isinstance(rendered_content, list):
+                    # 如果是列表且有有效内容项
+                    should_add_message = len(rendered_content) > 0
+                else:
+                    # 如果是字符串且不为空
+                    should_add_message = rendered_content and str(rendered_content).strip()
+
+                if should_add_message:
+                    rendered_messages.append({
+                        "role": role,
+                        "content": rendered_content
+                    })
+
+            return rendered_messages, var
         finally:
             _format_latency.labels(self.name, self.version).observe(perf_counter() - start)
-
-    def _format_openai(self, variant: Variant, variables: dict[str, Any]) -> list[dict]:
-        """Format messages for OpenAI API format."""
-        return [
-            {
-                "role": msg.get("role"),
-                "content": "\n".join(self._render_part_as_text(p, variables) for p in msg.get("parts", [])).strip("\n"),
-            }
-            for msg in variant.messages
-        ]
-
-    def _format_claude(self, variant: Variant, variables: dict[str, Any]) -> list[dict]:
-        """Format messages for Claude API format."""
-        return [
-            {
-                "role": msg.get("role"),
-                "content": [self._render_part_as_block(p, variables) for p in msg.get("parts", [])],
-            }
-            for msg in variant.messages
-        ]
-
-    def _format_a2a(self, variant: Variant, variables: dict[str, Any]) -> list[Message]:
-        """Format messages as internal Message objects."""
-        return self._render_messages(variant.messages, variables)
-
-    def _render_part_as_text(self, part: dict, variables: dict[str, Any]) -> str:
-        """Render a message part as plain text."""
-        if part.get("type") == "text":
-            txt = part.get("text", "").replace("\\n", "\n")
-            return _env.from_string(txt).render(**variables)
-        if part.get("type") == "file":
-            return f"[FILE]({part.get('file')})"
-        raise ValueError(f"Unsupported part type: {part.get('type')}")
-
-    def _render_part_as_block(self, part: dict, variables: dict[str, Any]) -> dict:
-        """Render a message part as a structured block."""
-        if part.get("type") == "text":
-            txt = part.get("text", "").replace("\\n", "\n")
-            rendered = _env.from_string(txt).render(**variables)
-            return {"type": "text", "text": rendered}
-        if part.get("type") == "file":
-            return {"type": "image", "source": {"type": "url", "url": part.get("file")}}
-        raise ValueError(f"Unsupported part type: {part.get('type')}")

@@ -14,20 +14,18 @@ class TemplateNotFoundError(Exception):
     """Raised when a template cannot be located by a loader."""
 
 
-
-
 class VersionEntry(BaseModel):
-    """Represents a version of a template with its ID and tags."""
+    """Represents a version of a template with its ID and aliases."""
 
     id: str
-    tags: list[str] = Field(default_factory=list)
+    aliases: list[str] = Field(default_factory=list)
 
 
 class TemplateLoader(ABC):
     """Base class; resolves <name>@<range>#tag+tag → PromptTemplate."""
 
     @abstractmethod
-    async def list_versions(self, name: str) -> list[VersionEntry]:
+    async def alist_versions(self, name: str) -> list[VersionEntry]:
         """List all available versions of a template.
 
         Parameters
@@ -38,13 +36,13 @@ class TemplateLoader(ABC):
         Returns
         -------
         List[VersionEntry]
-            List of available versions with their IDs and tags.
+            List of available versions with their IDs and aliases.
 
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def get_template(self, name: str, version: str) -> PromptTemplate:
+    async def aget_template(self, name: str, version: str) -> PromptTemplate:
         """Get a specific version of a template.
 
         Parameters
@@ -62,15 +60,31 @@ class TemplateLoader(ABC):
         """
         raise NotImplementedError
 
-    async def load(self, name: str, version_selector: str) -> PromptTemplate:
+    def list_versions_sync(self, name: str) -> list[VersionEntry]:
+        """Synchronous version of alist_versions.
+        
+        Default implementation uses asyncio.run to call the async version.
+        Subclasses can override this for better performance.
+        """
+        raise NotImplementedError
+
+    def get_template_sync(self, name: str, version: str) -> PromptTemplate:
+        """Synchronous version of aget_template.
+        
+        Default implementation uses asyncio.run to call the async version.
+        Subclasses can override this for better performance.
+        """
+        raise NotImplementedError
+
+    async def aload(self, name: str, version_selector: str) -> PromptTemplate:
         """Load a template using a version selector.
 
         Supports the following selector formats:
         - name@1.x                  # main version
-        - name@1.x#prod             # main version with tag
-        - name@1.x#prod+exp_a       # main version with multiple tags
+        - name@1.x#prod             # main version with alias
+        - name@1.x#prod+exp_a       # main version with multiple aliases
         - name@1.2.x               # secondary version
-        - name@1.2.x#beta          # secondary version with tag
+        - name@1.2.x#beta          # secondary version with alias
         - name@>=1.2.0,<1.5.0      # version range
 
         Parameters
@@ -87,7 +101,7 @@ class TemplateLoader(ABC):
 
         """
         # Get all available versions
-        versions = await self.list_versions(name)
+        versions = await self.alist_versions(name)
 
         # Find matching version using static method
         selected_version = self.select_version(versions, version_selector)
@@ -96,7 +110,7 @@ class TemplateLoader(ABC):
             raise ValueError(f"No version found matching selector: {version_selector}")
 
         # Load the selected version
-        return await self.get_template(name, selected_version.id)
+        return await self.aget_template(name, selected_version.id)
 
     @staticmethod
     def select_version(versions: list[VersionEntry], version_selector: str) -> VersionEntry | None:
@@ -119,11 +133,11 @@ class TemplateLoader(ABC):
             return None
 
         # Parse the version selector
-        version_spec, required_tags = TemplateLoader._parse_version_selector(version_selector)
+        version_spec, required_aliases = TemplateLoader._parse_version_selector(version_selector)
 
-        # Filter versions that have all required tags
-        if required_tags:
-            candidates = [v for v in versions if all(tag in v.tags for tag in required_tags)]
+        # Filter versions that have all required aliases
+        if required_aliases:
+            candidates = [v for v in versions if all(alias in v.aliases for alias in required_aliases)]
         else:
             candidates = versions
 
@@ -152,7 +166,7 @@ class TemplateLoader(ABC):
 
     @staticmethod
     def _parse_version_selector(selector: str) -> tuple[str, list[str]]:
-        """Parse a version selector into version spec and required tags.
+        """Parse a version selector into version spec and required aliases.
 
         Parameters
         ----------
@@ -162,26 +176,26 @@ class TemplateLoader(ABC):
         Returns
         -------
         tuple[str, List[str]]
-            Version specification and list of required tags.
+            Version specification and list of required aliases.
 
         """
         if not selector:
             raise ValueError("Version selector cannot be empty")
 
-        # Split on # to separate version from tags
+        # Split on # to separate version from aliases
         if "#" in selector:
-            version_spec, tags_part = selector.split("#", 1)
-            # Split tags on +
-            required_tags = [tag.strip() for tag in tags_part.split("+") if tag.strip()]
+            version_spec, aliases_part = selector.split("#", 1)
+            # Split aliases on +
+            required_aliases = [alias.strip() for alias in aliases_part.split("+") if alias.strip()]
         else:
             version_spec = selector
-            required_tags = []
+            required_aliases = []
 
         version_spec = version_spec.strip()
-        if not version_spec and not required_tags:
+        if not version_spec and not required_aliases:
             raise ValueError("Version specification cannot be empty")
 
-        return version_spec, required_tags
+        return version_spec, required_aliases
 
     @staticmethod
     def _is_version_range(version_spec: str) -> bool:

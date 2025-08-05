@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncGenerator, Callable, Iterable
+from typing import Union
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -11,7 +12,7 @@ from uuid import uuid4
 import aiofiles
 from prometheus_client import Counter
 
-from .message import Message
+from .message import Message, ModelResponse, StreamingModelResponse
 from .model_client import ModelClient, ModelConfig, RunParams
 
 
@@ -54,7 +55,7 @@ class ModelClientRecorder(ModelClient):
     async def _run(
         self,
         params: RunParams,
-    ) -> AsyncGenerator[Message, None]:
+    ) -> AsyncGenerator[Union[ModelResponse, StreamingModelResponse], None]:
         self._trace_id = str(uuid4())
         step = 0
         meta = {"provider": self.cfg.provider, "model": self.cfg.model}
@@ -69,18 +70,19 @@ class ModelClientRecorder(ModelClient):
             )
             step += 1
             try:
-                async for msg in self._wrapped.run(params):
-                    direction = "delta" if msg.kind == "tool_use" else "res"
-                    await self._write_row(f, step, direction, msg.model_dump(), meta)
+                async for response in self._wrapped.run(params):
+                    # Determine direction based on response type
+                    direction = "delta" if isinstance(response, StreamingModelResponse) else "res"
+                    await self._write_row(f, step, direction, response.model_dump(), meta)
                     step += 1
-                    yield msg
+                    yield response
             except Exception as exc:
                 await self._write_row(f, step, "error", {"error": str(exc)}, meta)
                 raise
 
-    async def close(self) -> None:
+    async def aclose(self) -> None:
         """Close the underlying client."""
-        await self._wrapped.close()
+        await self._wrapped.aclose()
 
 
 class ReplayEngine:
@@ -96,12 +98,12 @@ class ReplayEngine:
             self._clients[provider] = self._client_factory(provider)
         return self._clients[provider]
 
-    async def replay(
+    async def areplay(
         self,
         rows: Iterable[dict],
         up_to_step: int | None = None,
         patch: dict[int, list[Message]] | None = None,
-    ) -> AsyncGenerator[Message, None]:
+    ) -> AsyncGenerator[Union[ModelResponse, StreamingModelResponse], None]:
         """Replay a recorded session and optionally patch messages."""
         patch = patch or {}
         status = "ok"
@@ -122,10 +124,33 @@ class ReplayEngine:
                     cfg = ModelConfig(provider=provider, model=model)
                     client.cfg = cfg  # update static config if different
                     params = RunParams(messages=msgs)
-                    async for m in client.run(params):
-                        yield m
+                    async for response in client.arun(params):
+                        yield response
                 elif direction in ("delta", "res", "tool_result"):
-                    yield Message(**row["payload"])
+                    # For backward compatibility, convert stored message data to appropriate response type
+                    payload = row["payload"]
+                    if direction == "delta":
+                        # Create StreamingResponse from stored data
+                        yield StreamingModelResponse(
+                            id=payload.get("id", "replay"),
+                            model=model,
+                            choices=[{
+                                "index": 0,
+                                "delta": Message(**payload),
+                                "finish_reason": payload.get("finish_reason")
+                            }]
+                        )
+                    else:
+                        # Create ModelResponse from stored data
+                        yield ModelResponse(
+                            id=payload.get("id", "replay"),
+                            model=model,
+                            choices=[{
+                                "index": 0,
+                                "message": Message(**payload),
+                                "finish_reason": payload.get("finish_reason", "stop")
+                            }]
+                        )
                 elif direction == "error":
                     status = "fail"
                     raise ReplayError(row.get("payload"))

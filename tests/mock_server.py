@@ -30,13 +30,13 @@ class MockServer:
                     expected_request = row.get("request", {})
                     # Also remove 'stream' from expected request if it exists
                     expected_for_matching = {k: v for k, v in expected_request.items() if k != "stream"}
-
                     if expected_for_matching == payload_for_matching:
                         resp = row.get("response", {})
                         body = json.dumps(resp).encode()
                         inner_self.send_response(200)
                         inner_self.send_header("Content-Type", "application/json")
                         inner_self.end_headers()
+                        print(body)
                         inner_self.wfile.write(body)
                         return
                 inner_self.send_response(404)

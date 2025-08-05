@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -9,7 +10,7 @@ from prompti.loader import (
     TemplateLoader,
     TemplateNotFoundError,
 )
-from prompti.message import Message
+from prompti.message import Message, ModelResponse
 from prompti.model_client import ModelClient, ModelConfig, RunParams
 from prompti.model_client.config_loader import ModelConfigLoader
 from prompti.template import PromptTemplate, Variant
@@ -19,15 +20,32 @@ class DummyClient(ModelClient):
     provider = "dummy"
 
     async def _run(self, params: RunParams):
-        yield Message(role="assistant", kind="text", content="ok")
+        yield ModelResponse(
+            id="test_id",
+            model=self.cfg.model,
+            choices=[{
+                "index": 0,
+                "message": Message(role="assistant", content="ok"),
+                "finish_reason": "stop"
+            }]
+        )
 
 
 class DummyConfigLoader(ModelConfigLoader):
     def __init__(self, cfg: ModelConfig) -> None:
         self.cfg = cfg
+        self.models = [cfg]
 
-    def load(self) -> ModelConfig:
+    def load(self):
         return self.cfg
+        
+    def get_model_config(self, model: str, provider: str=None) -> ModelConfig:
+        if model == self.cfg.model:
+            return self.cfg
+        raise ValueError(f"Model {model} not found")
+        
+    def list_models(self):
+        return [self.cfg.model]
 
 
 @pytest.mark.asyncio
@@ -38,24 +56,39 @@ version: '1'
 variants:
   base:
     selector: []
-    model_config:
+    model_cfg:
       provider: dummy
       model: x
     messages:
       - role: user
-        parts: []
+        content: "Hello"
 """
-    engine = PromptEngine([MemoryLoader({"x": {"yaml": yaml_text}})])
-    client = DummyClient(ModelConfig(provider="dummy", model="y"))
-
-    out = [m async for m in engine.run("x", {}, client=client, variant="base", stream=False)]
-    assert out[0].content == "ok"
-    assert client.cfg == ModelConfig(provider="dummy", model="x")
+    # 使用补丁替换 create_client 函数，以便我们可以检查配置
+    with patch("prompti.engine.create_client") as mock_create_client:
+        # 创建一个返回 DummyClient 的模拟
+        dummy_client = DummyClient(ModelConfig(provider="dummy", model="x"))
+        mock_create_client.return_value = dummy_client
+        
+        # 使用内存模板加载器创建引擎
+        engine = PromptEngine([MemoryLoader({"x": {"yaml": yaml_text}})])
+        
+        # 运行模板
+        out = [m async for m in engine.run("x", {}, variant="base", stream=False)]
+        
+        # 验证结果
+        assert isinstance(out[0], ModelResponse)
+        assert out[0].choices[0].message.content == "ok"
+        
+        # 验证创建客户端时使用了正确的配置
+        mock_create_client.assert_called_once()
+        cfg_arg = mock_create_client.call_args[0][0]
+        assert cfg_arg.provider == "dummy"
+        assert cfg_arg.model == "x"
 
 
 @pytest.mark.asyncio
 async def test_load_returns_template():
-    engine = PromptEngine([FileSystemLoader(Path("./prompts"))])
+    engine = PromptEngine([FileSystemLoader(Path("tests/configs/prompts"))])
     tmpl = await engine.load("summary")
     assert isinstance(tmpl, PromptTemplate)
     assert tmpl.name == "summary"
@@ -71,7 +104,7 @@ async def test_load_caches_result():
             self.calls = 0
 
         async def list_versions(self, name: str) -> list[VersionEntry]:
-            return [VersionEntry(id="1", tags=[])]
+            return [VersionEntry(id="1", aliases=[])]
 
         async def get_template(self, name: str, version: str) -> PromptTemplate:
             self.calls += 1
@@ -87,7 +120,6 @@ async def test_load_caches_result():
                         messages=[],
                     )
                 },
-                yaml="",
             )
 
     loader = CountingLoader()
@@ -115,17 +147,34 @@ variants:
     selector: []
     messages:
       - role: user
-        parts: []
+        content: "Hello"
 """
+    # 创建配置和引擎
+    global_cfg = ModelConfig(provider="dummy", model="z")
     setting = Setting(
         memory_templates={"x": {"yaml": yaml_text}},
-        global_config_loader=DummyConfigLoader(ModelConfig(provider="dummy", model="z")),
+        default_model_config=global_cfg,
     )
-    engine = PromptEngine.from_setting(setting)
-    client = DummyClient(ModelConfig(provider="dummy", model="y"))
-    out = [m async for m in engine.run("x", {}, client=client, variant="base", stream=False)]
-    assert out[0].content == "ok"
-    assert client.cfg == ModelConfig(provider="dummy", model="z")
+    
+    # 使用patch监控create_client
+    with patch("prompti.engine.create_client") as mock_create_client:
+        # 设置模拟客户端
+        dummy_client = DummyClient(global_cfg)
+        mock_create_client.return_value = dummy_client
+        
+        # 创建引擎和运行测试
+        engine = PromptEngine.from_setting(setting)
+        out = [m async for m in engine.run("x", {}, variant="base", stream=False)]
+        
+        # 验证结果
+        assert isinstance(out[0], ModelResponse)
+        assert out[0].choices[0].message.content == "ok"
+        
+        # 验证使用了全局配置
+        mock_create_client.assert_called_once()
+        cfg_arg = mock_create_client.call_args[0][0]
+        assert cfg_arg.provider == "dummy" 
+        assert cfg_arg.model == "z"
 
 
 @pytest.mark.asyncio
@@ -136,21 +185,35 @@ version: '1'
 variants:
   base:
     selector: []
-    model_config:
+    model_cfg:
       provider: dummy
       model: x
     messages:
       - role: user
-        parts: []
+        content: "Hello"
 """
+    # 创建配置和引擎
+    global_cfg = ModelConfig(provider="dummy", model="z")
     setting = Setting(
         memory_templates={"x": {"yaml": yaml_text}},
-        global_config_loader=DummyConfigLoader(ModelConfig(provider="dummy", model="z")),
+        default_model_config=global_cfg,
     )
-    engine = PromptEngine.from_setting(setting)
-    client = DummyClient(ModelConfig(provider="dummy", model="y"))
-    [m async for m in engine.run("x", {}, client=client, variant="base", stream=False)]
-    assert client.cfg == ModelConfig(provider="dummy", model="x")
+    
+    # 使用patch监控create_client
+    with patch("prompti.engine.create_client") as mock_create_client:
+        # 设置模拟客户端
+        dummy_client = DummyClient(ModelConfig(provider="dummy", model="x"))
+        mock_create_client.return_value = dummy_client
+        
+        # 创建引擎和运行测试
+        engine = PromptEngine.from_setting(setting)
+        [m async for m in engine.run("x", {}, variant="base", stream=False)]
+        
+        # 验证使用了变体配置而不是全局配置
+        mock_create_client.assert_called_once()
+        cfg_arg = mock_create_client.call_args[0][0]
+        assert cfg_arg.provider == "dummy"
+        assert cfg_arg.model == "x"  # 变体配置的模型
 
 
 @pytest.mark.asyncio
@@ -163,16 +226,18 @@ variants:
     selector: []
     messages:
       - role: user
-        parts: []
+        content: "Hello"
 """
+    # 创建没有全局配置的引擎
     engine = PromptEngine([MemoryLoader({"x": {"yaml": yaml_text}})])
-    client = DummyClient(ModelConfig(provider="dummy", model="y"))
-    with pytest.raises(ValueError):
-        [m async for m in engine.run("x", {}, client=client, variant="base", stream=False)]
+    
+    # 没有模型配置应该引发错误
+    with pytest.raises(ValueError, match="ModelConfig required but not provided in template or globally"):
+        [m async for m in engine.run("x", {}, variant="base", stream=False)]
 
 
 @pytest.mark.asyncio
-async def test_engine_format_openai():
+async def test_engine_format():
     yaml_text = """
 name: greet
 version: '1'
@@ -181,11 +246,57 @@ variants:
     selector: []
     messages:
       - role: user
-        parts:
-          - type: text
-            text: "Hello {{ name }}"
+        content: "Hello {{ name }}"
 """
 
     engine = PromptEngine([MemoryLoader({"greet": {"yaml": yaml_text}})])
-    msgs = await engine.format("greet", {"name": "Ada"}, variant="base", format="openai")
-    assert msgs == [{"role": "user", "content": "Hello Ada"}]
+    msgs = await engine.format("greet", {"name": "Ada"}, variant="base")
+    assert isinstance(msgs, list)
+    assert len(msgs) == 1
+    assert msgs[0].get("role") == "user"
+    assert msgs[0].get("content") == "Hello Ada"
+
+
+@pytest.mark.asyncio
+async def test_direct_messages():
+    """测试直接使用messages参数的情况"""
+    # 创建直接使用的消息
+    direct_messages = [
+        Message(role="system", content="You are a helpful assistant"),
+        Message(role="user", content="Hello!")
+    ]
+    
+    # 创建模型配置
+    model_cfg = ModelConfig(provider="dummy", model="direct_model")
+    
+    # 使用patch监控create_client
+    with patch("prompti.engine.create_client") as mock_create_client:
+        # 设置模拟客户端
+        dummy_client = DummyClient(model_cfg)
+        mock_create_client.return_value = dummy_client
+        
+        # 创建引擎
+        engine = PromptEngine([])  # 不需要加载器
+        
+        # 运行测试，使用直接传入的messages
+        out = [m async for m in engine.run(
+            template_name="dummy",  # 只是一个占位符
+            variables={},  # 不会被使用
+            model_cfg=model_cfg,
+            messages=direct_messages,
+            stream=False
+        )]
+        
+        # 验证结果
+        assert isinstance(out[0], ModelResponse)
+        assert out[0].choices[0].message.content == "ok"
+        
+        # 验证传递给create_client的参数
+        mock_create_client.assert_called_once()
+        cfg_arg = mock_create_client.call_args[0][0]
+        assert cfg_arg.provider == "dummy"
+        assert cfg_arg.model == "direct_model"
+        
+        # 由于我们无法直接访问客户端的run方法调用参数
+        # 我们只验证模型配置和结果
+        assert out[0].model == "direct_model"
