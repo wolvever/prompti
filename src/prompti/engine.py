@@ -5,12 +5,13 @@ from __future__ import annotations
 import asyncio
 import json
 from functools import lru_cache
+from abc import ABC, abstractmethod
 
 import yaml
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Generator, Callable, Awaitable
 from typing import Union
 from pathlib import Path
-from typing import Any, cast, ClassVar
+from typing import Any, cast, ClassVar, Protocol
 import time
 
 from async_lru import alru_cache
@@ -35,6 +36,44 @@ from .template import PromptTemplate
 _tracer = trace.get_tracer(__name__)
 
 
+class HookResult:
+    """结果对象，包含处理后的数据和元数据。"""
+
+    def __init__(self, data: Any, metadata: dict[str, Any] | None = None):
+        self.data = data
+        self.metadata = metadata or {}
+
+
+class BeforeRunHook(ABC):
+    """运行前钩子基类，用于数据预处理（如匿名化）。"""
+
+    @abstractmethod
+    def process(self, params: "RunParams") -> HookResult:
+        """处理输入参数，返回处理后的参数和元数据。"""
+        pass
+
+    @abstractmethod
+    async def aprocess(self, params: "RunParams") -> HookResult:
+        """异步处理输入参数，返回处理后的参数和元数据。"""
+        pass
+
+
+class AfterRunHook(ABC):
+    """运行后钩子基类，用于数据后处理（如反匿名化）。"""
+
+    @abstractmethod
+    def process_response(self, response: Union["ModelResponse", "StreamingModelResponse"],
+                         hook_metadata: dict[str, Any]) -> HookResult:
+        """处理响应数据，使用before hook的元数据进行反向处理。"""
+        pass
+
+    @abstractmethod
+    async def aprocess_response(self, response: Union["ModelResponse", "StreamingModelResponse"],
+                                hook_metadata: dict[str, Any]) -> HookResult:
+        """异步处理响应数据，使用before hook的元数据进行反向处理。"""
+        pass
+
+
 class PromptEngine:
     """Resolve templates and generate model responses."""
 
@@ -45,6 +84,8 @@ class PromptEngine:
         cache_ttl: int = 300,
         global_model_config: ModelConfig | None = None,
         trace_service: TraceService | None = None,
+        before_run_hooks: list[BeforeRunHook] | None = None,
+        after_run_hooks: list[AfterRunHook] | None = None,
     ) -> None:
         """Initialize the engine with prompt loaders, model loaders and optional global config."""
         self._prompt_loaders = prompt_loaders
@@ -52,6 +93,8 @@ class PromptEngine:
         self._cache_ttl = cache_ttl
         self._global_cfg = global_model_config
         self._trace_service = trace_service
+        self._before_run_hooks = before_run_hooks or []
+        self._after_run_hooks = after_run_hooks or []
         self._resolve = alru_cache(maxsize=128, ttl=cache_ttl)(self._resolve_impl)
         self._sync_resolve = lru_cache(maxsize=128)(self._sync_resolve_impl)
 
@@ -62,7 +105,7 @@ class PromptEngine:
                 continue
             return tmpl
         raise TemplateNotFoundError(name)
-    
+
     def _sync_resolve_impl(self, name: str, version: str | None) -> PromptTemplate:
         """Synchronous template resolution implementation."""
         for loader in self._prompt_loaders:
@@ -91,7 +134,7 @@ class PromptEngine:
     async def aload(self, template_name: str, version: str = None) -> PromptTemplate:
         """Public entry: resolve & cache a template by name."""
         return await self._resolve(template_name, version)
-    
+
     # Backward compatibility alias
     async def load(self, template_name: str, version: str = None) -> PromptTemplate:
         """Deprecated: use aload() instead."""
@@ -108,17 +151,16 @@ class PromptEngine:
                 continue
         return None
 
-
     def _merge_model_configs(self, input_cfg: ModelConfig | None, template_cfg: ModelConfig | None) -> ModelConfig:
         """Merge model configurations with priority: input_cfg > template_cfg > global_cfg.
-        
+
         Args:
             input_cfg: Configuration passed to run method (highest priority)
             template_cfg: Configuration from template variant (medium priority)
-            
+
         Returns:
             Merged ModelConfig with proper field precedence
-            
+
         Raises:
             ValueError: If no valid configuration could be determined
         """
@@ -206,7 +248,7 @@ class PromptEngine:
         **run_params: Any,
     ) -> AsyncGenerator[Union[ModelResponse, StreamingModelResponse], None]:
         """Stream messages produced by running the template.
-        
+
         Args:
             template_name: Name of the template to run
             variables: Variables to use for template rendering
@@ -217,20 +259,26 @@ class PromptEngine:
             variant: Optional variant name to use (otherwise auto-selected)
             ctx: Optional context for variant selection (defaults to variables)
             tool_params: Optional tool parameters for model calls.
-                        Can be a ToolParams object, list of ToolSpec objects, 
+                        Can be a ToolParams object, list of ToolSpec objects,
                         list of dicts (converted to ToolSpec), or dict with ToolParams fields.
             messages: Optional direct messages to use instead of template.
                      Can be a list of Message objects or list of dicts (converted to Message).
                      If provided, template_name and variables will be ignored.
             **run_params: Additional parameters passed to model run
-            
+                         (e.g., stream, temperature, max_tokens, user_id,
+                         request_id, conversation_id, session_id, etc.)
+
         Returns:
             AsyncGenerator yielding ModelResponse or StreamingResponse objects
         """
         # Convert basic types to objects
         converted_model_cfg = self._convert_model_cfg(model_cfg) if model_cfg is not None else None
         converted_tool_params = self._convert_tool_params(tool_params) if tool_params is not None else None
-        converted_messages = self._convert_messages(messages) if messages is not None else None
+        if messages is not None:
+            filtered_messages = self._filter_empty_assistant_messages(messages)
+            converted_messages = self._convert_messages(filtered_messages)
+        else:
+            converted_messages = None
 
         # 如果直接提供了messages，则使用提供的messages，否则使用模板解析
         tmpl_name = template_name
@@ -255,7 +303,10 @@ class PromptEngine:
                 variant=variant,
                 selector=ctx,
             )
-            params = RunParams(messages=cast(list[Message], messages), tool_params=converted_tool_params, **run_params)
+            # Filter out empty assistant messages from template-generated messages
+            filtered_template_messages = self._filter_empty_assistant_messages(messages)
+            params = RunParams(messages=cast(list[Message], filtered_template_messages),
+                               tool_params=converted_tool_params, **run_params)
 
         # 设置跟踪属性
         span_attrs = {
@@ -292,31 +343,94 @@ class PromptEngine:
                 variables=variables,
                 user_id=params.user_id,
                 request_id=params.request_id,
-                conversation_id=params.session_id,
+                conversation_id=params.conversation_id or params.session_id,
                 span_id=params.span_id,
                 parent_span_id=params.parent_span_id,
                 source=params.source,
                 ext=params.extra_params,
             )
             try:
-                async for response in model_client.arun(params):
+                # 保存原始参数用于trace上报
+                original_params = params
+                original_responses = []
+
+                # 执行before run hooks
+                processed_params = params
+                hook_metadata = {}
+                for hook in self._before_run_hooks:
+                    hook_result = await hook.aprocess(processed_params)
+                    processed_params = hook_result.data
+                    hook_metadata.update(hook_result.metadata)
+
+                async for response in model_client.arun(processed_params):
+                    # 保存原始响应（未进行after hook处理）
+                    original_responses.append(response.model_dump(exclude_none=True))
+
+                    # 执行after run hooks
+                    processed_response = response
+                    for hook in self._after_run_hooks:
+                        hook_result = await hook.aprocess_response(processed_response, hook_metadata)
+                        processed_response = hook_result.data
+
                     # 收集所有响应用于trace上报
-                    yield response
-                    responses.append(response.model_dump(exclude_none=True))
+                    yield processed_response
+                    responses.append(processed_response.model_dump(exclude_none=True))
+
+                # 流式响应结束，刷新所有hooks的缓冲区
+                for hook in self._after_run_hooks:
+                    if hasattr(hook, '_flush_streaming_buffer'):
+                        mapping = hook_metadata.get('anonymization_mapping', {})
+                        if mapping:
+                            remaining_content = hook._flush_streaming_buffer(mapping)
+                            if remaining_content:
+                                # 创建一个包含剩余内容的响应
+
+                                final_response = StreamingModelResponse()
+                                final_response.choices = [type('Choice', (), {
+                                    'delta': type('Delta', (), {'content': remaining_content})()
+                                })()]
+                                yield final_response
 
                 # 流式响应结束后，仅上报一次完整的trace数据
                 if self._trace_service and responses:
-                    # 从model_client传递过来的数据填充到事件中
-                    if hasattr(params, "trace_context") and params.trace_context:
-                        # 请求体
-                        if "llm_request" in params.trace_context:
-                            event.llm_request_body = params.trace_context["llm_request"]
+                    # 构建llm_request_body
+                    request_body = {}
 
-                        # 响应体
-                        if "llm_response_body" in params.trace_context:
-                            event.llm_response_body = responses
+                    # 从model_client传递过来的基础请求数据
+                    if hasattr(processed_params, "trace_context") and processed_params.trace_context:
+                        if "llm_request" in processed_params.trace_context:
+                            request_body.update(processed_params.trace_context["llm_request"])
 
-                    event.perf_metrics = params.trace_context["perf_metrics"]
+                    # 添加匿名化相关数据
+                    if self._before_run_hooks or self._after_run_hooks:
+                        # 收集匿名化映射关系
+                        combined_mapping = {}
+                        for hook in self._before_run_hooks:
+                            if hasattr(hook, '_last_metadata') and hook._last_metadata:
+                                if 'anonymization_mapping' in hook._last_metadata:
+                                    combined_mapping.update(hook._last_metadata['anonymization_mapping'])
+
+                        # 在request_body中添加脱敏相关字段
+                        request_body["messages"] = [msg.model_dump() for msg in
+                                                    processed_params.messages]  # 匿名化后的messages
+                        request_body["original_messages"] = [msg.model_dump() for msg in
+                                                             original_params.messages]  # 匿名化前的messages
+                        request_body["anonymization_mapping"] = combined_mapping  # 匿名化映射关系
+                    else:
+                        # 没有hooks时，只记录messages
+                        request_body["messages"] = [msg.model_dump() for msg in params.messages]
+
+                    event.llm_request_body = request_body
+
+                    # 构建llm_response_body
+                    response_body = {
+                        "responses": original_responses,  # 大模型原始返回的数据
+                        "final_responses": responses  # 经过hooks处理后的最终数据
+                    }
+                    event.llm_response_body = response_body
+
+                    event.perf_metrics = processed_params.trace_context["perf_metrics"] if hasattr(processed_params,
+                                                                                                   "trace_context") else {}
                     event.token_usage = responses[-1].get("usage", {})
                     if "error" in responses[-1]:
                         event.error = json.dumps(response.error, ensure_ascii=False)
@@ -332,17 +446,36 @@ class PromptEngine:
                     # 构建错误trace事件
                     event.error = str(e)
 
+                    # 构建错误情况下的llm_request_body
+                    request_body = {}
+
                     # 从params中获取trace_context数据（如果存在）
                     if hasattr(params, "trace_context") and params.trace_context:
-                        if "llm_request" in params.trace_context:
-                            event.llm_request_body = params.trace_context["llm_request"]
+                        if "llm_request_body" in params.trace_context:
+                            request_body.update(params.trace_context["llm_request_body"])
                     else:
                         # 如果没有trace_context，则创建基本请求信息
-                        event.llm_request_body = {
+                        request_body = {
                             "model": getattr(cfg, "model", ""),
-                            "messages": [msg.model_dump() for msg in params.messages],
                             "tools": tool_params
                         }
+
+                    # 添加messages信息
+                    if self._before_run_hooks or self._after_run_hooks:
+                        # 有hooks的情况下，记录原始和处理后的messages
+                        request_body["messages"] = [msg.model_dump() for msg in processed_params.messages]
+                        request_body["original_messages"] = [msg.model_dump() for msg in original_params.messages]
+                        # 尝试获取mapping
+                        combined_mapping = {}
+                        for hook in self._before_run_hooks:
+                            if hasattr(hook, '_last_metadata') and hook._last_metadata:
+                                if 'anonymization_mapping' in hook._last_metadata:
+                                    combined_mapping.update(hook._last_metadata['anonymization_mapping'])
+                        request_body["anonymization_mapping"] = combined_mapping
+                    else:
+                        request_body["messages"] = [msg.model_dump() for msg in params.messages]
+
+                    event.llm_request_body = request_body
 
                     # 添加额外的元数据
                     if run_params.get("metadata"):
@@ -372,7 +505,7 @@ class PromptEngine:
         **run_params: Any,
     ) -> Generator[Union[ModelResponse, StreamingModelResponse], None, None]:
         """Synchronous version: Stream messages produced by running the template.
-        
+
         Args:
             template_name: Name of the template to run
             variables: Variables to use for template rendering
@@ -382,14 +515,20 @@ class PromptEngine:
             tool_params: Optional tool parameters for model calls
             messages: Optional direct messages to use instead of template
             **run_params: Additional parameters passed to model run
-            
+                         (e.g., stream, temperature, max_tokens, user_id,
+                         request_id, conversation_id, session_id, etc.)
+
         Returns:
             Generator yielding ModelResponse or StreamingResponse objects
         """
         # Convert basic types to objects
         converted_model_cfg = self._convert_model_cfg(model_cfg) if model_cfg is not None else None
         converted_tool_params = self._convert_tool_params(tool_params) if tool_params is not None else None
-        converted_messages = self._convert_messages(messages) if messages is not None else None
+        if messages is not None:
+            filtered_messages = self._filter_empty_assistant_messages(messages)
+            converted_messages = self._convert_messages(filtered_messages)
+        else:
+            converted_messages = None
 
         # Resolve template synchronously
         tmpl_name = template_name
@@ -415,7 +554,10 @@ class PromptEngine:
                 variant=variant,
                 selector=ctx,
             )
-            params = RunParams(messages=cast(list[Message], messages), tool_params=converted_tool_params, **run_params)
+            # Filter out empty assistant messages from template-generated messages
+            filtered_template_messages = self._filter_empty_assistant_messages(messages)
+            params = RunParams(messages=cast(list[Message], filtered_template_messages),
+                               tool_params=converted_tool_params, **run_params)
 
         # Set trace attributes
         span_attrs = {
@@ -433,7 +575,7 @@ class PromptEngine:
             # Merge configurations
             template_cfg = var.model_cfg if var is not None else None
             cfg = self._merge_model_configs(input_cfg=converted_model_cfg, template_cfg=template_cfg)
-            
+
             # Create sync model client
             from .model_client.factory import create_sync_client
             model_client = create_sync_client(cfg)
@@ -452,26 +594,91 @@ class PromptEngine:
                 variables=variables,
                 user_id=params.user_id,
                 request_id=params.request_id,
-                conversation_id=params.session_id,
+                conversation_id=params.conversation_id or params.session_id,
                 parent_span_id=params.parent_span_id,
                 span_id=params.span_id,
                 source=params.source,
                 ext=params.extra_params,
             )
             try:
-                for response in model_client.run(params):
-                    yield response
-                    responses.append(response.model_dump(exclude_none=True))
+                # 保存原始参数用于trace上报
+                original_params = params
+                original_responses = []
+
+                # 执行before run hooks
+                processed_params = params
+                hook_metadata = {}
+                for hook in self._before_run_hooks:
+                    hook_result = hook.process(processed_params)
+                    processed_params = hook_result.data
+                    hook_metadata.update(hook_result.metadata)
+
+                for response in model_client.run(processed_params):
+                    # 保存原始响应（未进行after hook处理）
+                    original_responses.append(response.model_dump(exclude_none=True))
+                    # 执行after run hooks
+                    processed_response = response
+                    for hook in self._after_run_hooks:
+                        hook_result = hook.process_response(processed_response, hook_metadata)
+                        processed_response = hook_result.data
+                    yield processed_response
+                    responses.append(processed_response.model_dump(exclude_none=True))
+
+                # 流式响应结束，刷新所有hooks的缓冲区
+                for hook in self._after_run_hooks:
+                    if hasattr(hook, '_flush_streaming_buffer'):
+                        mapping = hook_metadata.get('anonymization_mapping', {})
+                        if mapping:
+                            remaining_content = hook._flush_streaming_buffer(mapping)
+                            if remaining_content:
+                                # 创建一个包含剩余内容的响应
+                                from prompti.message import StreamingModelResponse
+                                final_response = StreamingModelResponse()
+                                final_response.choices = [type('Choice', (), {
+                                    'delta': type('Delta', (), {'content': remaining_content})()
+                                })()]
+                                yield final_response
 
                 # Report trace data after streaming response ends
                 if self._trace_service and responses:
-                    if hasattr(params, "trace_context") and params.trace_context:
-                        if "llm_request" in params.trace_context:
-                            event.llm_request_body = params.trace_context["llm_request"]
-                        if "llm_response_body" in params.trace_context:
-                            event.llm_response_body = responses
+                    # 构建llm_request_body
+                    request_body = {}
 
-                    event.perf_metrics = params.trace_context["perf_metrics"]
+                    # 从model_client传递过来的基础请求数据
+                    if hasattr(processed_params, "trace_context") and processed_params.trace_context:
+                        if "llm_request_body" in processed_params.trace_context:
+                            request_body.update(processed_params.trace_context["llm_request_body"])
+
+                    # 添加匿名化相关数据
+                    if self._before_run_hooks or self._after_run_hooks:
+                        # 收集匿名化映射关系
+                        combined_mapping = {}
+                        for hook in self._before_run_hooks:
+                            if hasattr(hook, '_last_metadata') and hook._last_metadata:
+                                if 'anonymization_mapping' in hook._last_metadata:
+                                    combined_mapping.update(hook._last_metadata['anonymization_mapping'])
+
+                        # 在request_body中添加脱敏相关字段
+                        request_body["messages"] = [msg.model_dump() for msg in
+                                                    processed_params.messages]  # 匿名化后的messages
+                        request_body["original_messages"] = [msg.model_dump() for msg in
+                                                             original_params.messages]  # 匿名化前的messages
+                        request_body["anonymization_mapping"] = combined_mapping  # 匿名化映射关系
+                    else:
+                        # 没有hooks时，只记录messages
+                        request_body["messages"] = [msg.model_dump() for msg in params.messages]
+
+                    event.llm_request_body = request_body
+
+                    # 构建llm_response_body
+                    response_body = {
+                        "responses": original_responses,  # 大模型原始返回的数据
+                        "final_responses": responses  # 经过hooks处理后的最终数据
+                    }
+                    event.llm_response_body = response_body
+
+                    event.perf_metrics = processed_params.trace_context.get("perf_metrics") if hasattr(processed_params,
+                                                                                                   "trace_context") else {}
                     event.token_usage = responses[-1].get("usage", {})
                     if "error" in responses[-1]:
                         event.error = json.dumps(response.error, ensure_ascii=False)
@@ -480,20 +687,40 @@ class PromptEngine:
 
                     # Use synchronous report method for sync completion
                     self._trace_service.report(event)
-                        
+
             except Exception as e:
                 # Handle errors in sync context
                 if self._trace_service:
                     event.error = str(e)
+
+                    # 构建错误情况下的llm_request_body
+                    request_body = {}
+
                     if hasattr(params, "trace_context") and params.trace_context:
-                        if "llm_request" in params.trace_context:
-                            event.llm_request_body = params.trace_context["llm_request"]
+                        if "llm_request_body" in params.trace_context:
+                            request_body.update(params.trace_context["llm_request_body"])
                     else:
-                        event.llm_request_body = {
+                        request_body = {
                             "model": getattr(cfg, "model", ""),
-                            "messages": [msg.model_dump() for msg in params.messages],
                             "tools": tool_params
                         }
+
+                    # 添加messages信息
+                    if self._before_run_hooks or self._after_run_hooks:
+                        # 有hooks的情况下，记录原始和处理后的messages
+                        request_body["messages"] = [msg.model_dump() for msg in processed_params.messages]
+                        request_body["original_messages"] = [msg.model_dump() for msg in original_params.messages]
+                        # 尝试获取mapping
+                        combined_mapping = {}
+                        for hook in self._before_run_hooks:
+                            if hasattr(hook, '_last_metadata') and hook._last_metadata:
+                                if 'anonymization_mapping' in hook._last_metadata:
+                                    combined_mapping.update(hook._last_metadata['anonymization_mapping'])
+                        request_body["anonymization_mapping"] = combined_mapping
+                    else:
+                        request_body["messages"] = [msg.model_dump() for msg in params.messages]
+
+                    event.llm_request_body = request_body
 
                     if run_params.get("metadata"):
                         event.ext = run_params.get("metadata", {})
@@ -540,6 +767,46 @@ class PromptEngine:
             return ToolParams(tools=converted_tools)
         return tool_params
 
+    def _filter_empty_assistant_messages(self, messages: list[Message] | list[dict]) -> list[Message] | list[dict]:
+        """Filter out empty assistant messages from the messages list, but keep those with tool calls."""
+        filtered_messages = []
+
+        for msg in messages:
+            # Extract role, content and tool_calls from Message object or dict
+            if isinstance(msg, dict):
+                role = msg.get("role", "")
+                content = msg.get("content", "")
+                tool_calls = msg.get("tool_calls", None)
+            else:
+                role = getattr(msg, "role", "")
+                content = getattr(msg, "content", "")
+                tool_calls = getattr(msg, "tool_calls", None)
+
+            # Skip assistant messages with empty content only if they don't have tool calls
+            if role == "assistant":
+                # If message has tool calls, keep it even if content is empty
+                if tool_calls is not None and tool_calls:
+                    filtered_messages.append(msg)
+                    continue
+
+                # Handle different content formats for messages without tool calls
+                if content is None or content == "":
+                    continue
+                elif isinstance(content, list):
+                    # Handle array format like [{"type": "text", "text": ""}]
+                    if not content or all(
+                        item.get("text", "") == "" if isinstance(item, dict) and item.get("type") == "text"
+                        else False
+                        for item in content
+                    ):
+                        continue
+                elif isinstance(content, str) and content.strip() == "":
+                    continue
+
+            filtered_messages.append(msg)
+
+        return filtered_messages
+
     def _convert_messages(self, messages: list[Message] | list[dict]) -> list[Message]:
         """Convert list of dicts to list of Message objects if needed."""
         if messages and isinstance(messages[0], dict):
@@ -551,7 +818,7 @@ class PromptEngine:
         """Close all resources including trace service."""
         if self._trace_service:
             await self._trace_service.aclose()
-    
+
     # Backward compatibility alias
     async def close(self):
         """Deprecated: use aclose() instead."""
@@ -562,7 +829,7 @@ class PromptEngine:
     async def __aenter__(self):
         """Async context manager entry."""
         return self
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.aclose()
@@ -570,10 +837,10 @@ class PromptEngine:
     @classmethod
     def from_setting(cls, setting: Setting) -> PromptEngine:
         """Create an engine instance from a :class:`Setting`.
-        
+
         Args:
             setting: Setting instance. If None, will load from default config file.
-            
+
         Returns:
             Configured PromptEngine instance
         """
@@ -600,7 +867,7 @@ class PromptEngine:
         if setting.registry_url and setting.registry_api_key:
             model_loaders.append(
                 HTTPModelConfigLoader(
-                    url=setting.registry_url, 
+                    url=setting.registry_url,
                     registry_api_key=setting.registry_api_key,
                     reload_interval=setting.model_cache_ttl
                 ))
@@ -619,13 +886,19 @@ class PromptEngine:
                 endpoint_url=setting.registry_url,
             )
 
+        # 创建hooks(如果配置了)
+        before_hooks = getattr(setting, 'before_run_hooks', None) or []
+        after_hooks = getattr(setting, 'after_run_hooks', None) or []
+
         # 创建引擎实例
         engine = cls(
             prompt_loaders=prompt_loaders,
             model_loaders=model_loaders,
             cache_ttl=setting.cache_ttl,
             global_model_config=global_cfg,
-            trace_service=trace_service
+            trace_service=trace_service,
+            before_run_hooks=before_hooks,
+            after_run_hooks=after_hooks
         )
 
         # 加载所有模型配置
@@ -654,6 +927,8 @@ class Setting(BaseModel):
     global_config_loader: ModelConfigLoader | None = None
     default_model_config: ModelConfig | None = None
     model_config_loaders: list[ModelConfigLoader] | None = None
+    before_run_hooks: list[BeforeRunHook] | None = None
+    after_run_hooks: list[AfterRunHook] | None = None
 
     @classmethod
     def from_file(cls, file_path: str | None = None) -> "Setting":

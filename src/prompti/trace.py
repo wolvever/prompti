@@ -32,8 +32,8 @@ class TraceEvent:
     variables: Optional[Dict[str, Any]] = None
 
     # Request information
-    llm_request_body: Dict[str, Any] = field(default_factory=dict)
-    llm_response_body: Dict[str, Any] = field(default_factory=dict)
+    llm_request_body: Dict[str, Any] = field(default_factory=dict)  # 包含messages, original_messages, mapping等
+    llm_response_body: Dict[str, Any] = field(default_factory=dict)  # 包含responses和final_responses
 
     # Metadata
     request_id: str = ""
