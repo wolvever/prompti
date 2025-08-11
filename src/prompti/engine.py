@@ -45,7 +45,7 @@ class HookResult:
 
 
 class BeforeRunHook(ABC):
-    """运行前钩子基类，用于数据预处理（如脱敏）。"""
+    """运行前钩子基类，用于数据预处理（如匿名化）。"""
 
     @abstractmethod
     def process(self, params: "RunParams") -> HookResult:
@@ -59,7 +59,7 @@ class BeforeRunHook(ABC):
 
 
 class AfterRunHook(ABC):
-    """运行后钩子基类，用于数据后处理（如反脱敏）。"""
+    """运行后钩子基类，用于数据后处理（如反匿名化）。"""
 
     @abstractmethod
     def process_response(self, response: Union["ModelResponse", "StreamingModelResponse"],
@@ -379,7 +379,7 @@ class PromptEngine:
                 # 流式响应结束，刷新所有hooks的缓冲区
                 for hook in self._after_run_hooks:
                     if hasattr(hook, '_flush_streaming_buffer'):
-                        mapping = hook_metadata.get('desensitization_mapping', {})
+                        mapping = hook_metadata.get('anonymization_mapping', {})
                         if mapping:
                             remaining_content = hook._flush_streaming_buffer(mapping)
                             if remaining_content:
@@ -401,21 +401,21 @@ class PromptEngine:
                         if "llm_request" in processed_params.trace_context:
                             request_body.update(processed_params.trace_context["llm_request"])
 
-                    # 添加脱敏相关数据
+                    # 添加匿名化相关数据
                     if self._before_run_hooks or self._after_run_hooks:
-                        # 收集脱敏映射关系
+                        # 收集匿名化映射关系
                         combined_mapping = {}
                         for hook in self._before_run_hooks:
                             if hasattr(hook, '_last_metadata') and hook._last_metadata:
-                                if 'desensitization_mapping' in hook._last_metadata:
-                                    combined_mapping.update(hook._last_metadata['desensitization_mapping'])
+                                if 'anonymization_mapping' in hook._last_metadata:
+                                    combined_mapping.update(hook._last_metadata['anonymization_mapping'])
 
                         # 在request_body中添加脱敏相关字段
                         request_body["messages"] = [msg.model_dump() for msg in
-                                                    processed_params.messages]  # 脱敏后的messages
+                                                    processed_params.messages]  # 匿名化后的messages
                         request_body["original_messages"] = [msg.model_dump() for msg in
-                                                             original_params.messages]  # 脱敏前的messages
-                        request_body["desensitization_mapping"] = combined_mapping  # 脱敏映射关系
+                                                             original_params.messages]  # 匿名化前的messages
+                        request_body["anonymization_mapping"] = combined_mapping  # 匿名化映射关系
                     else:
                         # 没有hooks时，只记录messages
                         request_body["messages"] = [msg.model_dump() for msg in params.messages]
@@ -469,9 +469,9 @@ class PromptEngine:
                         combined_mapping = {}
                         for hook in self._before_run_hooks:
                             if hasattr(hook, '_last_metadata') and hook._last_metadata:
-                                if 'desensitization_mapping' in hook._last_metadata:
-                                    combined_mapping.update(hook._last_metadata['desensitization_mapping'])
-                        request_body["desensitization_mapping"] = combined_mapping
+                                if 'anonymization_mapping' in hook._last_metadata:
+                                    combined_mapping.update(hook._last_metadata['anonymization_mapping'])
+                        request_body["anonymization_mapping"] = combined_mapping
                     else:
                         request_body["messages"] = [msg.model_dump() for msg in params.messages]
 
@@ -627,7 +627,7 @@ class PromptEngine:
                 # 流式响应结束，刷新所有hooks的缓冲区
                 for hook in self._after_run_hooks:
                     if hasattr(hook, '_flush_streaming_buffer'):
-                        mapping = hook_metadata.get('desensitization_mapping', {})
+                        mapping = hook_metadata.get('anonymization_mapping', {})
                         if mapping:
                             remaining_content = hook._flush_streaming_buffer(mapping)
                             if remaining_content:
@@ -649,21 +649,21 @@ class PromptEngine:
                         if "llm_request_body" in processed_params.trace_context:
                             request_body.update(processed_params.trace_context["llm_request_body"])
 
-                    # 添加脱敏相关数据
+                    # 添加匿名化相关数据
                     if self._before_run_hooks or self._after_run_hooks:
-                        # 收集脱敏映射关系
+                        # 收集匿名化映射关系
                         combined_mapping = {}
                         for hook in self._before_run_hooks:
                             if hasattr(hook, '_last_metadata') and hook._last_metadata:
-                                if 'desensitization_mapping' in hook._last_metadata:
-                                    combined_mapping.update(hook._last_metadata['desensitization_mapping'])
+                                if 'anonymization_mapping' in hook._last_metadata:
+                                    combined_mapping.update(hook._last_metadata['anonymization_mapping'])
 
                         # 在request_body中添加脱敏相关字段
                         request_body["messages"] = [msg.model_dump() for msg in
-                                                    processed_params.messages]  # 脱敏后的messages
+                                                    processed_params.messages]  # 匿名化后的messages
                         request_body["original_messages"] = [msg.model_dump() for msg in
-                                                             original_params.messages]  # 脱敏前的messages
-                        request_body["desensitization_mapping"] = combined_mapping  # 脱敏映射关系
+                                                             original_params.messages]  # 匿名化前的messages
+                        request_body["anonymization_mapping"] = combined_mapping  # 匿名化映射关系
                     else:
                         # 没有hooks时，只记录messages
                         request_body["messages"] = [msg.model_dump() for msg in params.messages]
@@ -714,9 +714,9 @@ class PromptEngine:
                         combined_mapping = {}
                         for hook in self._before_run_hooks:
                             if hasattr(hook, '_last_metadata') and hook._last_metadata:
-                                if 'desensitization_mapping' in hook._last_metadata:
-                                    combined_mapping.update(hook._last_metadata['desensitization_mapping'])
-                        request_body["desensitization_mapping"] = combined_mapping
+                                if 'anonymization_mapping' in hook._last_metadata:
+                                    combined_mapping.update(hook._last_metadata['anonymization_mapping'])
+                        request_body["anonymization_mapping"] = combined_mapping
                     else:
                         request_body["messages"] = [msg.model_dump() for msg in params.messages]
 

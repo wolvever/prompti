@@ -1,5 +1,5 @@
 """Hooks module for data processing before and after model runs."""
 
-from .desensitization import DesensitizationHook
+from .anonymize import AnonymizeHook
 
-__all__ = ["DesensitizationHook"]
+__all__ = ["AnonymizeHook"]

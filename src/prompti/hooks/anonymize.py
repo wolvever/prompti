@@ -9,7 +9,7 @@ from ..model_client import RunParams
 from ..message import Message, ModelResponse, StreamingModelResponse
 
 
-class DesensitizationHook(BeforeRunHook, AfterRunHook):
+class AnonymizeHook(BeforeRunHook, AfterRunHook):
     """脱敏处理钩子，支持对敏感数据进行脱敏和反脱敏。
     
     支持的脱敏类型：
@@ -62,7 +62,7 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
         # 添加自定义模式
         self.patterns.update(self.custom_patterns)
     
-    def _desensitize_text(self, text: str) -> tuple[str, Dict[str, str]]:
+    def _anonymize_text(self, text: str) -> tuple[str, Dict[str, str]]:
         """对文本进行脱敏处理。
         
         Args:
@@ -87,7 +87,7 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
         
         return result, mapping
     
-    def _recover_text(self, text: str, mapping: Dict[str, str]) -> str:
+    def _deanonymize_text(self, text: str, mapping: Dict[str, str]) -> str:
         """从脱敏文本恢复原始数据。
         
         Args:
@@ -118,8 +118,8 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
             new_msg = msg.model_copy()
             if msg.content:
                 if isinstance(msg.content, str):
-                    desensitized_content, mapping = self._desensitize_text(msg.content)
-                    new_msg.content = desensitized_content
+                    anonymized_content, mapping = self._anonymize_text(msg.content)
+                    new_msg.content = anonymized_content
                     combined_mapping.update(mapping)
                 elif isinstance(msg.content, list):
                     # 处理多模态内容
@@ -127,9 +127,9 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
                     for item in msg.content:
                         if isinstance(item, dict) and item.get('type') == 'text':
                             text_content = item.get('text', '')
-                            desensitized_text, mapping = self._desensitize_text(text_content)
+                            anonymized_text, mapping = self._anonymize_text(text_content)
                             new_item = item.copy()
-                            new_item['text'] = desensitized_text
+                            new_item['text'] = anonymized_text
                             new_content.append(new_item)
                             combined_mapping.update(mapping)
                         else:
@@ -141,7 +141,7 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
         return processed_messages, combined_mapping
     
     def process(self, params: RunParams) -> HookResult:
-        """同步处理运行参数进行脱敏。"""
+        """同步处理运行参数进行匿名化。"""
         processed_messages, mapping = self._process_messages(params.messages)
         
         # 创建新的RunParams对象
@@ -149,7 +149,7 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
         new_params.messages = processed_messages
         
         # 保存元数据用于trace
-        metadata = {'desensitization_mapping': mapping}
+        metadata = {'anonymization_mapping': mapping}
         self._last_metadata = metadata
         
         return HookResult(
@@ -158,12 +158,12 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
         )
     
     async def aprocess(self, params: RunParams) -> HookResult:
-        """异步处理运行参数进行脱敏。"""
-        # 脱敏是CPU密集型操作，这里直接调用同步方法
+        """异步处理运行参数进行匿名化。"""
+        # 匿名化是CPU密集型操作，这里直接调用同步方法
         return self.process(params)
     
     def _process_streaming_chunk(self, chunk: str, mapping: Dict[str, str]) -> str:
-        """实时处理流式响应块，立即恢复占位符而不等待。
+        """实时处理流式响应块，立即反匿名化占位符而不等待。
         
         基于滑动缓冲区的实时算法：
         1. 立即替换完整的占位符
@@ -172,10 +172,10 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
         
         Args:
             chunk: 当前响应块
-            mapping: 脱敏映射关系
+            mapping: 匿名化映射关系
             
         Returns:
-            str: 可以立即输出的恢复内容
+            str: 可以立即输出的反匿名化内容
         """
         if not mapping:
             return chunk
@@ -218,15 +218,15 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
         """刷新流式缓冲区的剩余内容。
         
         Args:
-            mapping: 脱敏映射关系
+            mapping: 匿名化映射关系
             
         Returns:
-            str: 剩余的恢复内容
+            str: 剩余的反匿名化内容
         """
         if not self._streaming_buffer:
             return ""
         
-        # 恢复剩余内容中的占位符
+        # 反匿名化剩余内容中的占位符
         result = self._streaming_buffer
         for placeholder, original in mapping.items():
             result = result.replace(placeholder, original)
@@ -236,8 +236,8 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
 
     def process_response(self, response: Union[ModelResponse, StreamingModelResponse], 
                          hook_metadata: Dict[str, Any]) -> HookResult:
-        """同步处理响应进行反脱敏。"""
-        mapping = hook_metadata.get('desensitization_mapping', {})
+        """同步处理响应进行反匿名化。"""
+        mapping = hook_metadata.get('anonymization_mapping', {})
         if not mapping:
             return HookResult(data=response)
         
@@ -246,14 +246,14 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
         # 处理不同类型的响应
         if hasattr(new_response, 'content') and new_response.content:
             if isinstance(new_response.content, str):
-                new_response.content = self._recover_text(new_response.content, mapping)
+                new_response.content = self._deanonymize_text(new_response.content, mapping)
             elif isinstance(new_response.content, list):
                 # 处理多模态响应内容
                 recovered_content = []
                 for item in new_response.content:
                     if isinstance(item, dict) and 'text' in item:
                         new_item = item.copy()
-                        new_item['text'] = self._recover_text(item['text'], mapping)
+                        new_item['text'] = self._deanonymize_text(item['text'], mapping)
                         recovered_content.append(new_item)
                     else:
                         recovered_content.append(item)
@@ -264,7 +264,7 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
             for choice in new_response.choices:
                 if hasattr(choice, 'message') and choice.message and hasattr(choice.message, 'content'):
                     if choice.message.content:
-                        choice.message.content = self._recover_text(choice.message.content, mapping)
+                        choice.message.content = self._deanonymize_text(choice.message.content, mapping)
                 elif hasattr(choice, 'delta') and choice.delta and hasattr(choice.delta, 'content'):
                     if choice.delta.content:
                         # 对于流式响应，使用缓冲处理
@@ -275,6 +275,6 @@ class DesensitizationHook(BeforeRunHook, AfterRunHook):
     
     async def aprocess_response(self, response: Union[ModelResponse, StreamingModelResponse], 
                                hook_metadata: Dict[str, Any]) -> HookResult:
-        """异步处理响应进行反脱敏。"""
-        # 反脱敏是CPU密集型操作，这里直接调用同步方法
+        """异步处理响应进行反匿名化。"""
+        # 反匿名化是CPU密集型操作，这里直接调用同步方法
         return self.process_response(response, hook_metadata)
