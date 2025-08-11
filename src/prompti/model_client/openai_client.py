@@ -184,9 +184,15 @@ class OpenAIClient(ModelClient):
             request_data["top_p"] = self.cfg.top_p
 
         if params.max_tokens is not None:
-            request_data["max_completion_tokens"] = params.max_tokens
+            if request_data.get("model", "") in ["o4-mini", "gpt-5", "gpt-5-mini", "gpt-5-nano"]:
+                request_data["max_completion_tokens"] = params.max_tokens
+            else:
+                request_data["max_tokens"] = params.max_tokens
         elif self.cfg.max_tokens is not None:
-            request_data["max_completion_tokens"] = self.cfg.max_tokens
+            if request_data.get("model", "") in ["o4-mini", "gpt-5", "gpt-5-mini", "gpt-5-nano"]:
+                request_data["max_completion_tokens"] = self.cfg.max_tokens
+            else:
+                request_data["max_tokens"] = self.cfg.max_tokens
 
         if params.stop:
             request_data["stop"] = params.stop
@@ -212,7 +218,7 @@ class OpenAIClient(ModelClient):
 
         # 添加额外参数
         request_data.update(params.extra_params)
-        if self.cfg.model == "o4-mini":
+        if self.cfg.model in ["o4-mini", "gpt-5", "gpt-5-mini", "gpt-5-nano"]:
             request_data.pop("top_p", None)
         params.trace_context["llm_request"] = request_data
         return request_data
@@ -533,9 +539,15 @@ class SyncOpenAIClient(SyncModelClient):
             request_data["top_p"] = self.cfg.top_p
 
         if params.max_tokens is not None:
-            request_data["max_completion_tokens"] = params.max_tokens
+            if request_data.get("model", "") in ["o4-mini", "gpt-5", "gpt-5-mini", "gpt-5-nano"]:
+                request_data["max_completion_tokens"] = params.max_tokens
+            else:
+                request_data["max_tokens"] = params.max_tokens
         elif self.cfg.max_tokens is not None:
-            request_data["max_completion_tokens"] = self.cfg.max_tokens
+            if request_data.get("model", "") in ["o4-mini", "gpt-5", "gpt-5-mini", "gpt-5-nano"]:
+                request_data["max_completion_tokens"] = self.cfg.max_tokens
+            else:
+                request_data["max_tokens"] = self.cfg.max_tokens
 
         if params.stop:
             request_data["stop"] = params.stop
@@ -559,7 +571,7 @@ class SyncOpenAIClient(SyncModelClient):
             self._add_tool_params(request_data, params.tool_params)
 
         request_data.update(params.extra_params)
-        if self.cfg.model == "o4-mini":
+        if self.cfg.model in ["o4-mini", "gpt-5", "gpt-5-mini", "gpt-5-nano"]:
             request_data.pop("top_p", None)
         params.trace_context["llm_request"] = request_data
         return request_data

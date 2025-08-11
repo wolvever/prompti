@@ -14,7 +14,7 @@ import httpx
 from opentelemetry import trace
 from opentelemetry.baggage import set_baggage
 from prometheus_client import Counter, Gauge, Histogram
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 from collections.abc import Generator
 
@@ -34,6 +34,9 @@ class ModelConfig(BaseModel):
     temperature: Optional[float] = None
     top_p: Optional[float] | None = None
     max_tokens: Optional[int] | None = None
+    
+    # extra parameters for client construction
+    extra_params: dict[str, Any] = {}
 
 
 class ToolSpec(BaseModel):
@@ -86,7 +89,8 @@ class RunParams(BaseModel):
     # misc
     user_id: str | None = None
     request_id: str | None = None
-    session_id: str | None = None
+    session_id: str | None = None  # Deprecated: use conversation_id instead
+    conversation_id: str | None = None
     span_id : str | None = None
     parent_span_id : str | None = None
     source: str | None = None
@@ -95,6 +99,23 @@ class RunParams(BaseModel):
     
     # trace data capture - used to pass data between engine and model client
     trace_context: dict[str, Any] = {}
+    
+    @model_validator(mode='before')
+    @classmethod
+    def handle_session_conversation_compatibility(cls, data):
+        """Handle backward compatibility between session_id and conversation_id."""
+        if isinstance(data, dict):
+            # If only session_id is provided, copy to conversation_id
+            if 'session_id' in data and 'conversation_id' not in data:
+                data['conversation_id'] = data['session_id']
+            # If only conversation_id is provided, copy to session_id for backward compatibility
+            elif 'conversation_id' in data and 'session_id' not in data:
+                data['session_id'] = data['conversation_id']
+            # If both are provided, conversation_id takes precedence
+            elif 'conversation_id' in data and 'session_id' in data:
+                data['session_id'] = data['conversation_id']
+        
+        return data
 
 
 class ModelClient:
@@ -307,12 +328,15 @@ class ModelClient:
             attrs["http.request_id"] = params.request_id
         if params.session_id:
             attrs["user.session_id"] = params.session_id
+        if params.conversation_id:
+            attrs["user.conversation_id"] = params.conversation_id
         if params.user_id:
             attrs["user.id"] = params.user_id
 
         for key, val in (
             ("request_id", params.request_id),
-            ("session_id", params.session_id),
+            ("session_id", params.session_id),  # Keep for backward compatibility
+            ("conversation_id", params.conversation_id),  # New field
             ("user_id", params.user_id),
         ):
             if val:
@@ -555,12 +579,15 @@ class SyncModelClient:
             attrs["http.request_id"] = params.request_id
         if params.session_id:
             attrs["user.session_id"] = params.session_id
+        if params.conversation_id:
+            attrs["user.conversation_id"] = params.conversation_id
         if params.user_id:
             attrs["user.id"] = params.user_id
 
         for key, val in (
             ("request_id", params.request_id),
-            ("session_id", params.session_id),
+            ("session_id", params.session_id),  # Keep for backward compatibility
+            ("conversation_id", params.conversation_id),  # New field
             ("user_id", params.user_id),
         ):
             if val:

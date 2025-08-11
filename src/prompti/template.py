@@ -47,6 +47,7 @@ def _parse_list_or_return_string(s: str):
         # 解析失败，返回原字符串
         return s
 
+
 class Variant(BaseModel):
     """Single experiment arm."""
 
@@ -69,10 +70,10 @@ class PromptTemplate(BaseModel):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PromptTemplate":
         """Create a PromptTemplate instance from a dictionary.
-        
+
         This method handles the conversion of the template data dictionary
         (typically from the database) into a proper PromptTemplate instance.
-        
+
         Args:
             data: Dictionary containing template data with the following structure:
                 - name: Template name
@@ -86,10 +87,10 @@ class PromptTemplate(BaseModel):
                     - required_variables: List of required variable names
                     - model_cfg: Model configuration dictionary
                     - tags: Additional tags/metadata
-        
+
         Returns:
             PromptTemplate: A properly constructed PromptTemplate instance
-            
+
         Example:
             >>> template_dict = {
             ...     "name": "customer-service",
@@ -116,15 +117,15 @@ class PromptTemplate(BaseModel):
         version = data.get("version")
         template_id = data.get("template_id") or data.get("id")
         aliases = data.get("alias", []) or data.get("aliases", [])
-        
+
         # Ensure aliases is a list
         if not isinstance(aliases, list):
             aliases = []
-            
+
         # Process variants from list format to dict format
         variants_data = data.get("variants", [])
         variants = {}
-        
+
         if isinstance(variants_data, list):
             for variant_data in variants_data:
                 # Extract variant information
@@ -133,12 +134,12 @@ class PromptTemplate(BaseModel):
                 required_variables = variant_data.get("required_variables", [])
                 model_cfg_data = variant_data.get("model_cfg")
                 tags = variant_data.get("tags", {})
-                
+
                 # Create ModelConfig if present
                 model_cfg = None
                 if model_cfg_data and isinstance(model_cfg_data, dict):
                     model_cfg = ModelConfig(**model_cfg_data)
-                
+
                 # Create Variant instance
                 variant = Variant(
                     selector=tags.get("selector", []) if isinstance(tags, dict) else [],
@@ -146,7 +147,7 @@ class PromptTemplate(BaseModel):
                     messages=messages,
                     required_variables=required_variables
                 )
-                
+
                 variants[variant_id] = variant
         elif isinstance(variants_data, dict):
             # Handle case where variants is already a dict
@@ -156,12 +157,12 @@ class PromptTemplate(BaseModel):
                     required_variables = variant_data.get("required_variables", [])
                     model_cfg_data = variant_data.get("model_cfg")
                     selector = variant_data.get("selector", [])
-                    
+
                     # Create ModelConfig if present
                     model_cfg = None
                     if model_cfg_data and isinstance(model_cfg_data, dict):
                         model_cfg = ModelConfig(**model_cfg_data)
-                    
+
                     # Create Variant instance
                     variant = Variant(
                         selector=selector,
@@ -169,9 +170,9 @@ class PromptTemplate(BaseModel):
                         messages=messages,
                         required_variables=required_variables
                     )
-                    
+
                     variants[variant_id] = variant
-        
+
         # If no variants found, create a default one
         if not variants:
             variants["default"] = Variant(
@@ -180,7 +181,7 @@ class PromptTemplate(BaseModel):
                 messages=[],
                 required_variables=[]
             )
-        
+
         # Create and return PromptTemplate instance
         return cls(
             name=name,
@@ -246,10 +247,13 @@ class PromptTemplate(BaseModel):
                                 rendered_url = _env.from_string(image_url).render(**variables)
                                 parsed_rendered_url = _parse_list_or_return_string(rendered_url)
                                 if isinstance(parsed_rendered_url, str):
-                                    rendered_content.append({"type": "image_url", "image_url": {"url": parsed_rendered_url}})
+                                    if parsed_rendered_url:
+                                        rendered_content.append(
+                                            {"type": "image_url", "image_url": {"url": parsed_rendered_url}})
                                 else:
                                     for url in parsed_rendered_url:
-                                        rendered_content.append({"type": "image_url", "image_url": {"url": url}})
+                                        if url:
+                                            rendered_content.append({"type": "image_url", "image_url": {"url": url}})
                             else:
                                 # Pass through other content types
                                 rendered_content.append(item)
